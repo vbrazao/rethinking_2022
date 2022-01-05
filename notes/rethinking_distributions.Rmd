@@ -1,0 +1,16 @@
+---
+title: "Rethinking Distritbuions Cheat Sheet"
+author: "VB & VAAN"
+date: "Last updated: Jan 5 2022"
+output: 
+ html_document: default
+ github_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Intention
+
+The intention for this doc is to update it with useful notes about the statistical distributions that show up in the Statistical Rethinking textbook, including probability density / mass functions, some moments when relevant, and, especially, comments on why one might choose specific distributions for different uses.
