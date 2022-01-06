@@ -1,0 +1,92 @@
+---
+title: "Homework - Week 1"
+author: "Vasco Brazão"
+date: "Jan 6 2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+set.seed(06012022)
+
+library(tidyverse)
+```
+
+
+## 1
+
+```{r}
+grid <- seq(from = 0, to = 1, len = 1000)
+
+prior <- 1
+
+likelihood <- dbinom(x = 4, size = 15, prob = grid)
+
+unstd.posterior <- prior * likelihood
+
+posterior <- unstd.posterior / sum(unstd.posterior)
+
+plot(x = grid, y = posterior)
+```
+
+## 2
+
+```{r}
+grid <- seq(from = 0, to = 1, len = 1000)
+
+prior <- ifelse(grid < .5, 0, 2)
+
+likelihood <- dbinom(x = 4, size = 6, prob = grid)
+
+unstd.posterior <- prior * likelihood
+
+posterior <- unstd.posterior / sum(unstd.posterior)
+
+plot(x = grid, y = posterior)
+```
+
+## 3
+
+```{r}
+samples <- sample(
+  x = grid,
+  size = 1e4,
+  replace = TRUE,
+  prob = posterior
+)
+
+rethinking::PI(samples, prob = .89)
+
+rethinking::HPDI(samples, prob = .89)
+```
+ 
+The HPDI is slightly narrower. This is to be expected, since `PI()` chooses the *central* interval with 89% probability, while `HPDI()` finds the *narrowest* interval that contains 89% of the posterior probability.
+
+From the intervals alone, I would likely assume the posterior to be almost symmetrical around them, and would completely miss that no probability at all is assigned to values between 0 and .5. 
+
+## 4
+
+```{r}
+samples <- tibble(
+  real = sample(
+    x = c("W", "L"),
+    size = 1e4,
+    replace = TRUE,
+    prob = c(.7, .3)
+  ),
+  biased = case_when(
+    real == "L" ~ "L",
+    real == "W" ~ sample(
+      x = c("W", "L"),
+      size = 1e4,
+      replace = TRUE,
+      prob = c(.8, .2)
+    )
+  )
+)
+
+samples %>% count(real, biased) 
+```
