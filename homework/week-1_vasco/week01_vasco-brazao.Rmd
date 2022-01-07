@@ -105,24 +105,54 @@ From the intervals alone, I would likely assume the posterior to be almost symme
 
 ## 4
 
-```{r prob.four}
-samples <- tibble(
-  real = sample(
-    x = c("W", "L"),
-    size = 1e4,
-    replace = TRUE,
-    prob = c(.7, .3)
-  ),
-  biased = case_when(
-    real == "L" ~ "L",
-    real == "W" ~ sample(
+```{r prob.four.functions}
+# generate biased binomial sample
+biasedrbinom <- function(
+                         nsamples = 1e4,
+                         # the true proportion of water
+                         prob_water = .7,
+                         # the proportion of true waters that are flipped to land
+                         prob_flip = .2) {
+  samples <- tibble(
+    real = sample(
       x = c("W", "L"),
-      size = 1e4,
+      size = nsamples,
       replace = TRUE,
-      prob = c(.8, .2)
+      prob = c(prob_water, 1 - prob_water)
+    ),
+    biased = case_when(
+      real == "W" ~ sample(
+        x = c("W", "L"),
+        size = nsamples,
+        replace = TRUE,
+        prob = c(1 - prob_flip, prob_flip)
+      ),
+      real == "L" ~ "L"
     )
   )
-)
 
-samples %>% count(real, biased) 
+  return(samples)
+}
+
+# get the proportion of waters in a biased sample
+
+biasedpropwater <- function() {
+  prop <- biasedrbinom() %>%
+    summarise(
+      propW = sum(biased == "W") / length(biased)
+    ) %>%
+    pull(propW)
+
+  return(prop)
+}
 ```
+
+```{r prob.four.calc}
+biasedproportions <- replicate(n = 1e4, expr = biasedpropwater())
+
+hist(biasedproportions)
+```
+
+The histogram shows that the biased generating process tends to produce proportions of water close to 56%, departing for the true value of 70%. 
+
+Even though I can simulate this I'm not sure how to turn this into a likelihood yet, so not sure how to "analyze" this biased data... I guess it's like a zero-inflated beta model? 
