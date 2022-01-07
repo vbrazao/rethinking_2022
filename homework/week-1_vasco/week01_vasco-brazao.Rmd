@@ -2,7 +2,10 @@
 title: "Homework - Week 1"
 author: "Vasco Brazão"
 date: "Jan 6 2022"
-output: html_document
+output: 
+ html_document: default
+ github_document:
+   toc: true
 ---
 
 ```{r setup, include=FALSE}
