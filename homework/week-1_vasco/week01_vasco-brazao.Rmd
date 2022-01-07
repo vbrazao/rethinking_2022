@@ -21,7 +21,7 @@ library(tidyverse)
 
 ## 1
 
-```{r}
+```{r prob.one.base}
 grid <- seq(from = 0, to = 1, len = 1000)
 
 prior <- 1
@@ -33,6 +33,21 @@ unstd.posterior <- prior * likelihood
 posterior <- unstd.posterior / sum(unstd.posterior)
 
 plot(x = grid, y = posterior)
+```
+
+```{r prob.one.tidy}
+one <- tibble::tibble(
+  p = seq(from = 0, to = 1, len = 1000),
+  prior = 1,
+  likelihood = dbinom(x = 4, size = 15, prob = p),
+  unstd.posterior = prior * likelihood,
+  posterior = unstd.posterior / sum(unstd.posterior)
+)
+
+one %>%
+  ggplot(aes(x = p, y = posterior)) +
+  geom_point(size = .25) +
+  theme_minimal()
 ```
 
 ## 2
@@ -51,9 +66,27 @@ posterior <- unstd.posterior / sum(unstd.posterior)
 plot(x = grid, y = posterior)
 ```
 
+```{r prob.two.tidy}
+two <- tibble::tibble(
+  p = seq(from = 0, to = 1, len = 1000),
+  prior = case_when(
+    p < .5 ~ 0,
+    TRUE ~ 2
+  ),
+  likelihood = dbinom(x = 4, size = 6, prob = p),
+  unstd.posterior = prior * likelihood,
+  posterior = unstd.posterior / sum(unstd.posterior)
+)
+
+two %>%
+  ggplot(aes(x = p, y = posterior)) +
+  geom_point(size = .25) +
+  theme_minimal()
+```
+
 ## 3
 
-```{r}
+```{r prob.three}
 samples <- sample(
   x = grid,
   size = 1e4,
@@ -72,7 +105,7 @@ From the intervals alone, I would likely assume the posterior to be almost symme
 
 ## 4
 
-```{r}
+```{r prob.four}
 samples <- tibble(
   real = sample(
     x = c("W", "L"),
