@@ -27,7 +27,7 @@ Probability mass function:
 
 $$ P(X = x|N,p) = \binom{N}{x} p^x(1-p)^{N-x} $$
 
-Where $x$ is the number of successes, $n$ is the number of trials, $p$ is the probability of success, and $\binom{N}{x}$ is "$N$ choose $x$", aka the binomial coefficient (see the relevant section for more: [The binomial coefficient]).
+Where $N\in\{1,2,...\}$ is the number of trials, $x\in\{1,2,...,N\}$ is the number of successes, $p\in[0,1]$ is the probability of success, and $\binom{N}{x}$ is "$N$ choose $x$", aka the binomial coefficient (see the relevant section for more: [The binomial coefficient]).
 
 This distribution is very useful as a **likelihood** when we want to model the probability of success, i.e., of one of the options of a binary response.
 

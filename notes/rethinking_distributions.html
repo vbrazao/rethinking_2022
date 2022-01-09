@@ -377,7 +377,7 @@ pre code {
 <p><span class="math display">\[ X \sim \operatorname{Binomial}(N, p) \]</span></p>
 <p>Probability mass function:</p>
 <p><span class="math display">\[ P(X = x|N,p) = \binom{N}{x} p^x(1-p)^{N-x} \]</span></p>
-<p>Where <span class="math inline">\(x\)</span> is the number of successes, <span class="math inline">\(n\)</span> is the number of trials, <span class="math inline">\(p\)</span> is the probability of success, and <span class="math inline">\(\binom{N}{x}\)</span> is “<span class="math inline">\(N\)</span> choose <span class="math inline">\(x\)</span>”, aka the binomial coefficient (see the relevant section for more: <a href="#the-binomial-coefficient">The binomial coefficient</a>).</p>
+<p>Where <span class="math inline">\(N\in\{1,2,...\}\)</span> is the number of trials, <span class="math inline">\(x\in\{1,2,...,N\}\)</span> is the number of successes, <span class="math inline">\(p\in[0,1]\)</span> is the probability of success, and <span class="math inline">\(\binom{N}{x}\)</span> is “<span class="math inline">\(N\)</span> choose <span class="math inline">\(x\)</span>”, aka the binomial coefficient (see the relevant section for more: <a href="#the-binomial-coefficient">The binomial coefficient</a>).</p>
 <p>This distribution is very useful as a <strong>likelihood</strong> when we want to model the probability of success, i.e., of one of the options of a binary response.</p>
 </div>
 </div>
