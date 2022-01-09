@@ -14,3 +14,33 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Intention
 
 The intention for this doc is to update it with useful notes about the statistical distributions that show up in the Statistical Rethinking textbook, including probability density / mass functions, some moments when relevant, and, especially, comments on why one might choose specific distributions for different uses.
+
+# Distributions
+
+## Binomial
+
+Rethinking notation:
+
+$$ X \sim \operatorname{Binomial}(N, p) $$
+
+Probability mass function:
+
+$$ P(X = x|N,p) = \binom{N}{x} p^x(1-p)^{N-x} $$
+
+Where $x$ is the number of successes, $n$ is the number of trials, $p$ is the probability of success, and $\binom{N}{x}$ is "$N$ choose $x$", aka the binomial coefficient (see the relevant section for more: [The binomial coefficient]).
+
+This distribution is very useful as a **likelihood** when we want to model the probability of success, i.e., of one of the options of a binary response.
+
+# Other useful things
+
+## Combinatorics
+
+### The binomial coefficient
+
+The binomial coefficient, also known as "$N$ choose $x$" allows us to calculate the number of *combinations* of size $x$ of $N$ different elements that are not repeated. A combination does not take order into account. Thus, for example, there are only three ways to combine two elements out of the set $\{A, B, C\}$, namely $\{A, B\}$, $\{A, C\}$, and $\{B, C\}$.
+ 
+ $$ C_{N}^x = {}^{N}C_{x} = \binom{N}{x} = \frac{N!}{x!(N - x)!} $$
+ 
+Online, you mostly find $n$ and $k$ instead of $N$ and $x$, respectively.
+
+[Note: could be good to include here a good explainer for the formula?]
