@@ -365,6 +365,7 @@ pre code {
 </div>
 
 
+<pre class="r"><code>set.seed(1159)</code></pre>
 <div id="intention" class="section level2">
 <h2>Intention</h2>
 <p>The intention for this doc is to update it with useful notes about the statistical distributions that show up in the Statistical Rethinking textbook, including probability density / mass functions, some moments when relevant, and, especially, comments on why one might choose specific distributions for different uses.</p>
@@ -379,6 +380,19 @@ pre code {
 <p><span class="math display">\[ P(X = x|N,p) = \binom{N}{x} p^x(1-p)^{N-x} \]</span></p>
 <p>Where <span class="math inline">\(N\in\{1,2,...\}\)</span> is the number of trials, <span class="math inline">\(x\in\{1,2,...,N\}\)</span> is the number of successes, <span class="math inline">\(p\in[0,1]\)</span> is the probability of success, and <span class="math inline">\(\binom{N}{x}\)</span> is “<span class="math inline">\(N\)</span> choose <span class="math inline">\(x\)</span>”, aka the binomial coefficient (see the relevant section for more: <a href="#the-binomial-coefficient">The binomial coefficient</a>).</p>
 <p>This distribution is very useful as a <strong>likelihood</strong> when we want to model the probability of success, i.e., of one of the options of a binary response.</p>
+<div id="r-commands" class="section level3">
+<h3>R commands</h3>
+<p><code>rbinom(n, size, prob)</code> generates a vector with the number of successes (we called that <span class="math inline">\(x\)</span>) in each of <code>n</code> draws from a binomial distribution where <span class="math inline">\(N\)</span> equals <code>size</code> and <span class="math inline">\(p\)</span> equals <code>prob</code>.</p>
+<pre class="r"><code>example.rbinom &lt;- rbinom(
+  n = 5,
+  size = 10,
+  prob = .8
+)
+
+example.rbinom</code></pre>
+<pre><code>## [1] 7 9 8 8 9</code></pre>
+<p>In this example, there were 7 successes out of 10 attempts in the first draw, 9 successes out of 10 attempts in the second draw, and so on.</p>
+</div>
 </div>
 </div>
 <div id="other-useful-things" class="section level1">

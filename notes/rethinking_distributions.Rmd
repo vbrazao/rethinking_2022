@@ -11,6 +11,10 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+set.seed(1159)
+```
+
 ## Intention
 
 The intention for this doc is to update it with useful notes about the statistical distributions that show up in the Statistical Rethinking textbook, including probability density / mass functions, some moments when relevant, and, especially, comments on why one might choose specific distributions for different uses.
@@ -30,6 +34,22 @@ $$ P(X = x|N,p) = \binom{N}{x} p^x(1-p)^{N-x} $$
 Where $N\in\{1,2,...\}$ is the number of trials, $x\in\{1,2,...,N\}$ is the number of successes, $p\in[0,1]$ is the probability of success, and $\binom{N}{x}$ is "$N$ choose $x$", aka the binomial coefficient (see the relevant section for more: [The binomial coefficient]).
 
 This distribution is very useful as a **likelihood** when we want to model the probability of success, i.e., of one of the options of a binary response.
+
+### R commands
+
+`rbinom(n, size, prob)` generates a vector with the number of successes (we called that $x$) in each of `n` draws from a binomial distribution where $N$ equals `size` and $p$ equals `prob`.
+
+```{r example.rbinom}
+example.rbinom <- rbinom(
+  n = 5,
+  size = 10,
+  prob = .8
+)
+
+example.rbinom
+```
+
+In this example, there were `r example.rbinom[1]` successes out of 10 attempts in the first draw, `r example.rbinom[2]` successes out of 10 attempts in the second draw, and so on.
 
 # Other useful things
 
