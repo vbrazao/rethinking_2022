@@ -1561,6 +1561,10 @@ example.rbinom</code></pre>
 <h2>Gaussian (normal)</h2>
 <p>Rethinking notation:</p>
 <p><span class="math display">\[ y_i \sim \operatorname{Normal}(\mu, \sigma) \]</span></p>
+<p>This is what is meant elsewhere by</p>
+<p><span class="math display">\[ y_i \sim \mathcal{N}(\mu, \sigma) \]</span></p>
+<p>or even</p>
+<p><span class="math display">\[ y_i \stackrel{iid}{\sim} \mathcal{N}(\mu, \sigma) \]</span> (iid = independent and identically distributed, meaning each value <span class="math inline">\(h_i\)</span> is independent of the others, and all come from the same distribution function)</p>
 <p>Probability density function:</p>
 <p><span class="math display">\[ p(y|\mu,\sigma) = \frac{1}{\sqrt{2\pi\sigma^2}}
                                  \text{exp}\left(-\frac{(y-\mu)^2}{2\sigma^2}\right) \]</span></p>

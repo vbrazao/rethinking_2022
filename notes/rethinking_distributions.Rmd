@@ -78,6 +78,15 @@ Rethinking notation:
 
 $$ y_i \sim \operatorname{Normal}(\mu, \sigma) $$
 
+This is what is meant elsewhere by
+
+$$ y_i \sim \mathcal{N}(\mu, \sigma) $$
+
+or even
+
+$$ y_i \stackrel{iid}{\sim} \mathcal{N}(\mu, \sigma) $$
+(iid = independent and identically distributed, meaning each value $h_i$ is independent of the others, and all come from the same distribution function)
+
 Probability density function:
 
 $$ p(y|\mu,\sigma) = \frac{1}{\sqrt{2\pi\sigma^2}}
