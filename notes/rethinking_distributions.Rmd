@@ -71,6 +71,22 @@ dbinom(
 )
 ```
 
+
+## Gaussian (normal)
+
+Rethinking notation:
+
+$$ y_i \sim \operatorname{Normal}(\mu, \sigma) $$
+
+Probability density function:
+
+$$ p(y|\mu,\sigma) = \frac{1}{\sqrt{2\pi\sigma^2}}
+                                 \text{exp}\left(-\frac{(y-\mu)^2}{2\sigma^2}\right) $$
+
+The PDF can also be parameterized with $\tau = 1/\sigma^2$, as such:
+
+$$ p(y|\mu,\tau) = \sqrt{\frac{\tau}{2\pi}}\text{exp}\left(-\frac{1}{2}\tau(y-\mu)^2\right) $$
+
 # Other useful things
 
 ## Combinatorics

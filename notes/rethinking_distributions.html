@@ -1557,6 +1557,16 @@ example.rbinom</code></pre>
 </div>
 </div>
 </div>
+<div id="gaussian-normal" class="section level2">
+<h2>Gaussian (normal)</h2>
+<p>Rethinking notation:</p>
+<p><span class="math display">\[ y_i \sim \operatorname{Normal}(\mu, \sigma) \]</span></p>
+<p>Probability density function:</p>
+<p><span class="math display">\[ p(y|\mu,\sigma) = \frac{1}{\sqrt{2\pi\sigma^2}}
+                                 \text{exp}\left(-\frac{(y-\mu)^2}{2\sigma^2}\right) \]</span></p>
+<p>The PDF can also be parameterized with <span class="math inline">\(\tau = 1/\sigma^2\)</span>, as such:</p>
+<p><span class="math display">\[ p(y|\mu,\tau) = \sqrt{\frac{\tau}{2\pi}}\text{exp}\left(-\frac{1}{2}\tau(y-\mu)^2\right) \]</span></p>
+</div>
 </div>
 <div id="other-useful-things" class="section level1">
 <h1>Other useful things</h1>
