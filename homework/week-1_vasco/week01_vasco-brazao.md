@@ -1,7 +1,7 @@
 ---
 title: "Homework - Week 1"
 author: "Vasco Brazão"
-date: "Jan 6 2022"
+date: "Jan 13 2022"
 output: 
  html_document:
    keep_md: yes
@@ -59,61 +59,57 @@ plot(x = grid, y = posterior)
 
 
 ```r
-one <- tibble::tibble(
-  p = seq(from = 0, to = 1, len = 1000),
-  prior = 1,
-  likelihood = dbinom(x = 4, size = 15, prob = p),
-  unstd.posterior = prior * likelihood,
-  posterior = unstd.posterior / sum(unstd.posterior)
-)
-
-one %>%
-  ggplot(aes(x = p, y = posterior)) +
-  geom_point(size = .25) +
-  theme_minimal()
+# one <- tibble::tibble(
+#   p = seq(from = 0, to = 1, len = 1000),
+#   prior = 1,
+#   likelihood = dbinom(x = 4, size = 15, prob = p),
+#   unstd.posterior = prior * likelihood,
+#   posterior = unstd.posterior / sum(unstd.posterior)
+# )
+#
+# one %>%
+#   ggplot(aes(x = p, y = posterior)) +
+#   geom_point(size = .25) +
+#   theme_minimal()
 ```
-
-![](week01_vasco-brazao_files/figure-html/prob.one.tidy-1.png)<!-- -->
 
 ## 2
 
 
 ```r
-grid <- seq(from = 0, to = 1, len = 1000)
+grid_two <- seq(from = 0, to = 1, len = 1000)
 
-prior <- ifelse(grid < .5, 0, 2)
+prior_two <- ifelse(grid_two < .5, 0, 2)
 
-likelihood <- dbinom(x = 4, size = 6, prob = grid)
+likelihood_two <- dbinom(x = 4, size = 6, prob = grid_two)
 
-unstd.posterior <- prior * likelihood
+unstd.posterior_two <- prior_two * likelihood_two
 
-posterior <- unstd.posterior / sum(unstd.posterior)
+posterior_two <- unstd.posterior_two / sum(unstd.posterior_two)
 
-plot(x = grid, y = posterior)
+plot(x = grid_two, y = posterior_two)
 ```
 
 ![](week01_vasco-brazao_files/figure-html/unnamed-chunk-2-1.png)<!-- -->
 
 
 ```r
-two <- tibble::tibble(
-  p = seq(from = 0, to = 1, len = 1000),
-  prior = case_when(
-    p < .5 ~ 0,
-    TRUE ~ 2
-  ),
-  likelihood = dbinom(x = 4, size = 6, prob = p),
-  unstd.posterior = prior * likelihood,
-  posterior = unstd.posterior / sum(unstd.posterior)
-)
-
-two %>%
-  ggplot(aes(x = p, y = posterior)) +
-  geom_point(size = .25) +
-  theme_minimal()
+# two <- tibble::tibble(
+#   p = seq(from = 0, to = 1, len = 1000),
+#   prior = case_when(
+#     p < .5 ~ 0,
+#     TRUE ~ 2
+#   ),
+#   likelihood = dbinom(x = 4, size = 6, prob = p),
+#   unstd.posterior = prior * likelihood,
+#   posterior = unstd.posterior / sum(unstd.posterior)
+# )
+#
+# two %>%
+#   ggplot(aes(x = p, y = posterior)) +
+#   geom_point(size = .25) +
+#   theme_minimal()
 ```
-
-![](week01_vasco-brazao_files/figure-html/prob.two.tidy-1.png)<!-- -->
 
 ## 3
 
@@ -123,7 +119,7 @@ samples <- sample(
   x = grid,
   size = 1e4,
   replace = TRUE,
-  prob = posterior
+  prob = posterior_two
 )
 
 rethinking::PI(samples, prob = .89)
@@ -152,8 +148,7 @@ From the intervals alone, I would likely assume the posterior to be almost symme
 
 ```r
 # generate biased binomial sample
-biasedrbinom <- function(
-                         nsamples = 1e4,
+biasedrbinom <- function(nsamples = 1e4,
                          # the true proportion of water
                          prob_water = .7,
                          # the proportion of true waters that are flipped to land
@@ -201,6 +196,6 @@ hist(biasedproportions)
 
 ![](week01_vasco-brazao_files/figure-html/prob.four.calc-1.png)<!-- -->
 
-The histogram shows that the biased generating process tends to produce proportions of water close to 56%, departing for the true value of 70%. 
+The histogram shows that the biased generating process tends to produce proportions of water close to 56%, departing from the true value of 70%. 
 
-Even though I can simulate this I'm not sure how to turn this into a likelihood yet, so not sure how to "analyze" this biased data... I guess it's like a zero-inflated beta model? 
+Even though I can simulate this I'm not sure how to turn this into a likelihood yet, so not sure how to "analyze" this biased data... I guess it's like a zero-inflated binomial model? 
