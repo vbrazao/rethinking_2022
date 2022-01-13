@@ -1,5 +1,5 @@
 ---
-title: "Week1 Homework"
+title: "Week 1 Homework"
 author: "Varaidzo Ndebele"
 date: "1/13/2022"
 output:   
@@ -20,8 +20,6 @@ library(rethinking)
 library(tidyverse)
 library(ggpubr)
 ```
-
-# Week 1 Homework
 
 ## Q1
 
