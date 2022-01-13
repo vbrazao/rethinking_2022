@@ -9,11 +9,10 @@ output:
    keep_md: yes
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
-```{r}
+
+
+```r
 set.seed(1159)
 ```
 
@@ -45,7 +44,8 @@ This distribution is very useful as a **likelihood** when we want to model the p
 
 `rbinom(n, size, prob)` generates a vector with the number of successes (we called that $x$) in each of `n` draws from a binomial distribution where $N$ equals `size` and $p$ equals `prob`.
 
-```{r example.rbinom}
+
+```r
 example.rbinom <- rbinom(
   n = 5,
   size = 10,
@@ -55,18 +55,27 @@ example.rbinom <- rbinom(
 example.rbinom
 ```
 
-In this example, there were `r example.rbinom[1]` successes out of 10 attempts in the first draw, `r example.rbinom[2]` successes out of 10 attempts in the second draw, and so on.
+```
+## [1] 7 9 8 8 9
+```
+
+In this example, there were 7 successes out of 10 attempts in the first draw, 9 successes out of 10 attempts in the second draw, and so on.
 
 #### Density
 
 `dbinom(x, size, prob)` computes the probability mass function $P(X=x|N,p)$, where $x$ equals `x`, $N$ equals `size`, and $p$ equals `prob`. So, for example, the probability of observing 4 successes out of 10 attempts, if each has a probability of 0.7 of occurring is:
 
-```{r example.dbinom}
+
+```r
 dbinom(
   x = 4,
   size = 10,
   prob = .7
 )
+```
+
+```
+## [1] 0.03675691
 ```
 
 
@@ -108,9 +117,14 @@ Online, you mostly find $n$ and $k$ instead of $N$ and $x$, respectively.
 
 You can use `choose(n, k)` to compute them.
 
-```{r example.binomial.coef}
+
+```r
 # how many ways to pick exactly 7 diferent elements out of 10 total elements?
 choose(10, 7)
+```
+
+```
+## [1] 120
 ```
 
 [Note: could be good to include here a good explainer for the formula?]

@@ -154,4 +154,4 @@ hist(biasedproportions)
 
 The histogram shows that the biased generating process tends to produce proportions of water close to 56%, departing for the true value of 70%. 
 
-Even though I can simulate this I'm not sure how to turn this into a likelihood yet, so not sure how to "analyze" this biased data... I guess it's like a zero-inflated beta model? 
+Even though I can simulate this I'm not sure how to turn this into a likelihood yet, so not sure how to "analyze" this biased data... I guess it's like a zero-inflated binomial model? 
