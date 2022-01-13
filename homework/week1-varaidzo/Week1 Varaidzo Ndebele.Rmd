@@ -1,0 +1,137 @@
+---
+title: "Week1 Homework"
+author: "Varaidzo Ndebele"
+date: "1/13/2022"
+output:   
+  html_document:
+    code_folding: show
+    toc: true
+    toc_depth: 2
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+```{r libraries, warning = FALSE, message = FALSE}
+library(rethinking)
+library(tidyverse)
+library(ggpubr)
+```
+
+# Week 1 Homework
+
+## Q1
+
+```{r Q1, warning = FALSE, message = FALSE}
+
+p_grid <- seq( from = 0 , to = 1 , length.out = 1000 )
+
+prior <- rep( 1 , 15 )
+
+likelihood <- dbinom( 4 , size = 15 , prob = p_grid )
+
+unstd.posterior <- likelihood * prior
+
+posterior <- unstd.posterior / sum(unstd.posterior)
+
+plot( p_grid , posterior , type = "b" ,
+      xlab = "probability of water" , ylab = "posterior probability" )
+
+```
+
+## Q2
+
+```{r Q2, warning = FALSE, message = FALSE}
+
+p_grid <- seq( from = 0 , to = 1 , length.out = 1000 )
+
+prior <- ifelse( p_grid < 0.5 , 0 , 1 )
+
+likelihood <- dbinom( 4 , size = 6 , prob = p_grid )
+
+unstd.posterior <- likelihood * prior
+
+posterior <- unstd.posterior / sum(unstd.posterior)
+
+plot( p_grid , posterior , type = "b" ,
+      xlab = "probability of water" , ylab = "posterior probability" )
+
+```
+
+## Q3
+
+```{r Q3, warning = FALSE, message = FALSE}
+
+p_grid <- seq( from = 0 , to = 1 , length.out = 1000 )
+
+prior <- ifelse( p_grid < 0.5 , 0 , 1 )
+
+likelihood <- dbinom( 4 , size = 6 , prob = p_grid )
+
+unstd.posterior <- likelihood * prior
+
+posterior <- unstd.posterior / sum(unstd.posterior)
+
+samples <- sample(p_grid , size = 1e4 , replace=TRUE , prob=posterior )
+
+PI( samples , prob = 0.89 )
+
+HPDI( samples , prob = 0.89 )
+
+```
+
+- The percentile interval (PI) is wider than the highest posterior density interval (HPDI) because the HPDI includes the narrowest region with 89% of the posterior probability (as in the example above), whereas the PI displays the central probability of parameter values, capturing a wider interval (see below)[^1].
+
+- If only the intervals were available, it could be misunderstood that the distribution is more symmetrical than it is.
+
+```{r visualisations, warning = FALSE, message = FALSE}
+
+#visualising plots: the tidyverse way
+
+n <- 1000
+n_success <- 4
+n_trials  <- 6
+
+
+  d <- 
+    tibble(p_grid = seq(from = 0, to = 1, length.out = n),
+       prior) %>% 
+  mutate(likelihood = dbinom(n_success, size = n_trials, prob = p_grid)) %>% 
+  mutate(posterior = (likelihood * prior) / sum(likelihood * prior))
+
+
+# set no. of samples
+n_samples <- 1e4
+
+samples <-
+  d %>% 
+  slice_sample(n = n_samples, weight_by = posterior, replace = T)
+
+#visualisation of plots overlayed with defined ontervals
+(p1 <- d %>% 
+  ggplot(aes(x = p_grid, y = posterior)) +
+  geom_line() +
+  theme_minimal()+
+    geom_bracket(
+      xmin = 0.52, xmax = 0.88, y.position = 0.0035,
+      label = "PI", color = "#1a85ff"
+    ) +
+  geom_area(data = d %>% filter(p_grid < .88 & p_grid > .52), fill = "#1a85ff", alpha = 0.6) +
+  
+  geom_line(data = d) +
+  geom_line() +
+  theme_minimal() +
+    geom_bracket(
+      xmin = 0.5, xmax = 0.84, y.position = 0.0032,
+      label = "HPDI", color = "#d41159"
+    ) +
+  geom_area(data = d %>% filter(p_grid < .84 & p_grid > .5), fill = "#d41159", alpha = 0.6) +
+  labs(title = "HPDI and PI",
+    x = "proportion of water (p)",
+       y = "density"))
+```
+
+[^1]: Adapted from this lovely [bookdown](https://bookdown.org/content/4857/sampling-the-imaginary.html#intervals-of-defined-mass.)
