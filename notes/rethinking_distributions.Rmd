@@ -7,6 +7,7 @@ output:
    toc: true
    toc_float: true
    keep_md: yes
+ pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
