@@ -143,3 +143,18 @@ dplyr::bind_cols(weight.mean, weight.PI) %>%
   ) %>% knitr::kable()
 ```
 
+## 2
+
+```{r two.data}
+d2 <- d %>% 
+  dplyr::filter(
+    age < 13
+  )
+```
+
+For the total causal effect, we simply need to regress weight on age.
+
+Two things are important for the priors:
+1. The intercept should be positive and somewhere around average weight at birth.
+2. The slope should be positive.
+
