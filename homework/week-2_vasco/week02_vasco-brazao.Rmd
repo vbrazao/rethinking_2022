@@ -4,6 +4,9 @@ author: "Vasco Brazão"
 output: 
  html_document:
    keep_md: yes
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -19,8 +22,8 @@ data(Howell1)
 d <- Howell1
 ```
 
-
 ## 1
+
 ```{r one.data}
 d1 <- d %>% 
   dplyr::filter(
@@ -49,8 +52,8 @@ $$ \text{weight}_i \sim \operatorname{Normal}(\mu_i, \sigma) $$
 $$ \mu_i = \alpha + \beta \text{height}_i$$
 $$ \alpha \sim \operatorname{Normal}(0, 1) $$
 $$ \beta \sim \operatorname{Log-Normal}(0, 1) $$
-$$ \sigma \sim \operatorname{Exponential}(\frac{1}{2}) $$
-Let's do some prior predictive simulation to check that this makes *some* sense.
+$$ \sigma \sim \operatorname{Exponential}(\frac{1}{2}) $$ Let's do some
+prior predictive simulation to check that this makes *some* sense.
 
 ```{r one.ppsim.lines}
 one_prior_lines <- tibble::tibble(
@@ -68,7 +71,9 @@ one_prior_lines %>%
   ggplot2::geom_line(alpha = .2)
 ```
 
-This captures the idea that negative relationships are not possible while still allowing for some absurdly large slopes. Let's also simulate some data.
+This captures the idea that negative relationships are not possible
+while still allowing for some absurdly large slopes. Let's also simulate
+some data.
 
 ```{r one.ppsim.data}
 one_prior_data <- tibble::tibble(
@@ -154,7 +159,121 @@ d2 <- d %>%
 
 For the total causal effect, we simply need to regress weight on age.
 
-Two things are important for the priors:
-1. The intercept should be positive and somewhere around average weight at birth.
-2. The slope should be positive.
+Two things are important for the priors: 1. The intercept should be
+positive and somewhere around average weight at birth. 2. The slope
+should be positive.
+
+I think we can use the Log-Normal trick here again.
+
+For the intercept: [English
+Wikipedia](https://en.wikipedia.org/wiki/Birth_weight) tells us that normal birthweight ranges from 2.5 to 4.5kg. 
+The mean of that is 3.5, so that should be the mean of our prior for the intercept. Tinkering with [this online calculator](https://www.omnicalculator.com/statistics/lognormal-distribution) tells me that $\operatorname{Log-Normal}(0.75, 1)$ has a mean of 3.49 and a standard deviation of 4.575. I'll stick with that unless simulation shows it to be absurd.
+
+For the slope, I'll try the same prior as before, $\operatorname{Log-Norma}(0, 1)$.
+
+And so, our model: 
+
+$$ \text{weight}_i \sim \operatorname{Normal}(\mu_i, \sigma) $$
+$$ \mu_i = \alpha + \beta \text{age}_i$$
+$$ \alpha \sim \operatorname{Log-Normal}(0.75, 1) $$
+$$ \beta \sim \operatorname{Log-Normal}(0, 1) $$
+$$ \sigma \sim \operatorname{Exponential}(\frac{1}{2}) $$
+
+Let's again simulate many lines to see if this makes sense. Adapting the code from the previous slide to reflect the new priors and swapping height for age gives:
+
+```{r two.ppsim.lines}
+two_prior_lines <- tibble::tibble(
+  n = 1:1e2,
+  intercept = rlnorm(n = 1e2, mean = 0.75, sd = 1),
+  slope = rlnorm(n = 1e2, mean = 0, sd = 1)
+) %>% 
+  tidyr::expand(tidyr::nesting(n, intercept, slope), age = range(d2$age)) %>% 
+  dplyr::mutate(
+    weight = intercept + slope * age
+  )
+
+two_prior_lines %>% 
+  ggplot2::ggplot(ggplot2::aes(x = age, y = weight, group = n)) +
+  ggplot2::geom_line(alpha = .2)
+```
+
+Ok, this seems a little excessive... Let's try to tighten the prior on the intercept and slope a little bit. $\operatorname{Log-Normal}(1.1, 0.5)$ has a mean of 3.40 and a standard deviation of 1.81, which seems a bit more reasonable. 
+For the slope, the mean should be around 2: these WHO charts (for [girls](https://cdn.who.int/media/docs/default-source/child-growth/child-growth-standards/indicators/weight-for-age/cht-wfa-girls-p-0-5.pdf?sfvrsn=d4a8e3bc_12) and [boys](https://cdn.who.int/media/docs/default-source/child-growth/child-growth-standards/indicators/weight-for-age/cht-wfa-boys-p-0-5.pdf?sfvrsn=7a899731_12)) make me think that is a reasonable number. $\operatorname{Log-Normal}(0.5, 0.7)$ has a mean of 2.11 and a standard deviation of 1.68, so let's try that.
+
+The new model:
+
+$$ \text{weight}_i \sim \operatorname{Normal}(\mu_i, \sigma) $$
+$$ \mu_i = \alpha + \beta \text{age}_i$$
+$$ \alpha \sim \operatorname{Log-Normal}(1.1, 0.5) $$
+$$ \beta \sim \operatorname{Log-Normal}(0.5, 0.7) $$
+$$ \sigma \sim \operatorname{Exponential}(\frac{1}{2}) $$
+
+Let's again simulate many lines to see if this makes sense. Adapting the code from the previous slide to reflect the new priors and swapping height for age gives:
+
+```{r two.ppsim.lines.2}
+two_prior_lines2 <- tibble::tibble(
+  n = 1:1e2,
+  intercept = rlnorm(n = 1e2, mean = 1.1, sd = 0.5),
+  slope = rlnorm(n = 1e2, mean = 0.5, sd = 0.7)
+) %>% 
+  tidyr::expand(tidyr::nesting(n, intercept, slope), age = range(d2$age)) %>% 
+  dplyr::mutate(
+    weight = intercept + slope * age
+  )
+
+two_prior_lines2 %>% 
+  ggplot2::ggplot(ggplot2::aes(x = age, y = weight, group = n)) +
+  ggplot2::geom_line(alpha = .2)
+```
+
+This seems a lot more reasonable! Let's estimate with `quap`.
+
+```{r two.quap}
+m2 <- rethinking::quap(
+  alist(
+    weight ~ dnorm(mu, sigma),
+    mu <- a + b*age,
+    a ~ dlnorm(1.1, 0.5),
+    b ~ dlnorm(0.5, 0.7),
+    sigma ~ dexp(1/2)
+  ), data = d2
+)
+
+rethinking::precis(m2)
+```
+
+Thus, the marginal intercept is higher than I thought, and the marginal slope is lower than I thought.
+
+Maybe we should plot the data now:
+
+```{r two.data.plot}
+d2 %>% 
+  ggplot2::ggplot(ggplot2::aes(x = age, y = weight)) +
+  ggplot2::geom_point(alpha = 0.5)
+```
+
+And now for the full plot:
+
+```{r two.full.plot}
+age.seq <- tibble::tibble(
+  age = seq(0, 12, by = 0.2)
+)
+
+mu2 <- rethinking::link(m2, data = age.seq)
+
+mu2.mean <- apply(mu2, 2, mean)
+mu2.pi <- apply(mu2, 2, rethinking::PI, prob = 0.89)
+
+mu2.tibble <- age.seq %>% 
+  dplyr::mutate(
+    mu2.mean = mu2.mean,
+    mu2.lower = mu2.pi[1,],
+    mu2.higher = mu2.pi[2,]
+  )
+
+d2 %>% 
+  ggplot2::ggplot(ggplot2::aes(x = age, y = weight)) +
+  ggplot2::geom_point(alpha = 0.5) +
+  ggplot2::geom_smooth(aes(x = age, y = mu2.mean, ymin = mu2.lower, ymax = mu2.higher), data = mu2.tibble, stat = "identity")
+```
 
