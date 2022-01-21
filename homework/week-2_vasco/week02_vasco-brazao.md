@@ -567,3 +567,28 @@ sum(slope.contrast > 0)/length(slope.contrast)
 ```
 
 Indeed, 16% probability that the slope is higher for girls than boys.
+
+(Edit after submitting and checking the answers:)
+
+So it seems in the first contrast, for the mean, I could have done it differently. What I did gives the distribution of the difference in means between girls and boys for each age. But it seems we might be more interested in the distribution of the difference in weight. 
+
+This is the adapted code from the solutions (adapted to the names of my model and variables, basically)
+
+
+```r
+mu1 <- sim(m3.2, data = list(age = age.seq.2, sex = rep(1, 14)))
+mu2 <- sim(m3.2, data = list(age = age.seq.2, sex = rep(2, 14)))
+
+mu_contrast <- mu1
+
+for(i in 1:14) mu_contrast[,i] <- mu1[,i] - mu2[,i]
+plot(NULL, xlim = c(0,13), ylim = c(-15,15), xlab = "age", ylab = "weight difference (girls-boys)")
+
+for(p in c(.5, .67, .89, .99))
+  shade(apply(mu_contrast, 2, rethinking::PI, prob = p), age.seq.2)
+
+abline(h = 0, lty = 2, lwd = 2)
+```
+
+![](week02_vasco-brazao_files/figure-html/three.contrast.solutions-1.png)<!-- -->
+
