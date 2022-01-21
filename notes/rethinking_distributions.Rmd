@@ -18,9 +18,19 @@ knitr::opts_chunk$set(echo = TRUE)
 set.seed(1159)
 ```
 
-## Intention
+# Intention
 
 The intention for this doc is to update it with useful notes about the statistical distributions that show up in the Statistical Rethinking textbook, including probability density / mass functions, some moments when relevant, and, especially, comments on why one might choose specific distributions for different uses.
+
+# Lists
+
+These lists should help you find what you are looking for in this document.
+
+## Maximum entropy distributions:
+
+* Mean and variance: [Gaussian (normal)]
+* ...
+
 
 # Distributions
 
@@ -71,6 +81,9 @@ dbinom(
 ```
 
 
+
+## Exponential
+
 ## Gaussian (normal)
 
 Rethinking notation:
@@ -94,6 +107,9 @@ $$ p(y|\mu,\sigma) = \frac{1}{\sqrt{2\pi\sigma^2}}
 The PDF can also be parameterized with $\tau = 1/\sigma^2$, as such:
 
 $$ p(y|\mu,\tau) = \sqrt{\frac{\tau}{2\pi}}\text{exp}\left(-\frac{1}{2}\tau(y-\mu)^2\right) $$
+
+
+## Log-Normal
 
 # Other useful things
 
