@@ -1,11 +1,12 @@
 ---
 title: "Homework - Week 2"
 author: "Vasco Brazão"
-output: 
- html_document:
-   keep_md: yes
-editor_options: 
-  markdown: 
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+editor_options:
+  markdown:
     wrap: 72
 ---
 
@@ -13,9 +14,11 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r message = FALSE, warning = FALSE}
 library(rethinking)
 library(tidyverse)
+
+set.seed(21012022)
 
 data(Howell1)
 
@@ -166,12 +169,19 @@ should be positive.
 I think we can use the Log-Normal trick here again.
 
 For the intercept: [English
-Wikipedia](https://en.wikipedia.org/wiki/Birth_weight) tells us that normal birthweight ranges from 2.5 to 4.5kg. 
-The mean of that is 3.5, so that should be the mean of our prior for the intercept. Tinkering with [this online calculator](https://www.omnicalculator.com/statistics/lognormal-distribution) tells me that $\operatorname{Log-Normal}(0.75, 1)$ has a mean of 3.49 and a standard deviation of 4.575. I'll stick with that unless simulation shows it to be absurd.
+Wikipedia](https://en.wikipedia.org/wiki/Birth_weight) tells us that
+normal birthweight ranges from 2.5 to 4.5kg. The mean of that is 3.5, so
+that should be the mean of our prior for the intercept. Tinkering with
+[this online
+calculator](https://www.omnicalculator.com/statistics/lognormal-distribution)
+tells me that $\operatorname{Log-Normal}(0.75, 1)$ has a mean of 3.49
+and a standard deviation of 4.575. I'll stick with that unless
+simulation shows it to be absurd.
 
-For the slope, I'll try the same prior as before, $\operatorname{Log-Norma}(0, 1)$.
+For the slope, I'll try the same prior as before,
+$\operatorname{Log-Norma}(0, 1)$.
 
-And so, our model: 
+And so, our model:
 
 $$ \text{weight}_i \sim \operatorname{Normal}(\mu_i, \sigma) $$
 $$ \mu_i = \alpha + \beta \text{age}_i$$
@@ -179,7 +189,9 @@ $$ \alpha \sim \operatorname{Log-Normal}(0.75, 1) $$
 $$ \beta \sim \operatorname{Log-Normal}(0, 1) $$
 $$ \sigma \sim \operatorname{Exponential}(\frac{1}{2}) $$
 
-Let's again simulate many lines to see if this makes sense. Adapting the code from the previous slide to reflect the new priors and swapping height for age gives:
+Let's again simulate many lines to see if this makes sense. Adapting the
+code from the previous slide to reflect the new priors and swapping
+height for age gives:
 
 ```{r two.ppsim.lines}
 two_prior_lines <- tibble::tibble(
@@ -197,8 +209,17 @@ two_prior_lines %>%
   ggplot2::geom_line(alpha = .2)
 ```
 
-Ok, this seems a little excessive... Let's try to tighten the prior on the intercept and slope a little bit. $\operatorname{Log-Normal}(1.1, 0.5)$ has a mean of 3.40 and a standard deviation of 1.81, which seems a bit more reasonable. 
-For the slope, the mean should be around 2: these WHO charts (for [girls](https://cdn.who.int/media/docs/default-source/child-growth/child-growth-standards/indicators/weight-for-age/cht-wfa-girls-p-0-5.pdf?sfvrsn=d4a8e3bc_12) and [boys](https://cdn.who.int/media/docs/default-source/child-growth/child-growth-standards/indicators/weight-for-age/cht-wfa-boys-p-0-5.pdf?sfvrsn=7a899731_12)) make me think that is a reasonable number. $\operatorname{Log-Normal}(0.5, 0.7)$ has a mean of 2.11 and a standard deviation of 1.68, so let's try that.
+Ok, this seems a little excessive... Let's try to tighten the prior on
+the intercept and slope a little bit.
+$\operatorname{Log-Normal}(1.1, 0.5)$ has a mean of 3.40 and a standard
+deviation of 1.81, which seems a bit more reasonable. For the slope, the
+mean should be around 2: these WHO charts (for
+[girls](https://cdn.who.int/media/docs/default-source/child-growth/child-growth-standards/indicators/weight-for-age/cht-wfa-girls-p-0-5.pdf?sfvrsn=d4a8e3bc_12)
+and
+[boys](https://cdn.who.int/media/docs/default-source/child-growth/child-growth-standards/indicators/weight-for-age/cht-wfa-boys-p-0-5.pdf?sfvrsn=7a899731_12))
+make me think that is a reasonable number.
+$\operatorname{Log-Normal}(0.5, 0.7)$ has a mean of 2.11 and a standard
+deviation of 1.68, so let's try that.
 
 The new model:
 
@@ -208,7 +229,9 @@ $$ \alpha \sim \operatorname{Log-Normal}(1.1, 0.5) $$
 $$ \beta \sim \operatorname{Log-Normal}(0.5, 0.7) $$
 $$ \sigma \sim \operatorname{Exponential}(\frac{1}{2}) $$
 
-Let's again simulate many lines to see if this makes sense. Adapting the code from the previous slide to reflect the new priors and swapping height for age gives:
+Let's again simulate many lines to see if this makes sense. Adapting the
+code from the previous slide to reflect the new priors and swapping
+height for age gives:
 
 ```{r two.ppsim.lines.2}
 two_prior_lines2 <- tibble::tibble(
@@ -242,7 +265,8 @@ m2 <- rethinking::quap(
 rethinking::precis(m2)
 ```
 
-Thus, the marginal intercept is higher than I thought, and the marginal slope is lower than I thought.
+Thus, the marginal intercept is higher than I thought, and the marginal
+slope is lower than I thought.
 
 Maybe we should plot the data now:
 
@@ -255,6 +279,8 @@ d2 %>%
 And now for the full plot:
 
 ```{r two.full.plot}
+# mu and 89% PI for mu across all ages in the data
+
 age.seq <- tibble::tibble(
   age = seq(0, 12, by = 0.2)
 )
@@ -268,12 +294,176 @@ mu2.tibble <- age.seq %>%
   dplyr::mutate(
     mu2.mean = mu2.mean,
     mu2.lower = mu2.pi[1,],
-    mu2.higher = mu2.pi[2,]
+    mu2.upper = mu2.pi[2,]
+  )
+
+# simulating weights to calculate 89% prediction interval
+
+sim.weight <- rethinking::sim(m2, data = list(age = age.seq$age))
+
+weight.PI <- apply(sim.weight, 2, rethinking::PI, prob = .89)
+
+pred.tibble <- age.seq %>% 
+  dplyr::mutate(
+    weight.lower = weight.PI[1,],
+    weight.upper = weight.PI[2,],
   )
 
 d2 %>% 
   ggplot2::ggplot(ggplot2::aes(x = age, y = weight)) +
   ggplot2::geom_point(alpha = 0.5) +
-  ggplot2::geom_smooth(aes(x = age, y = mu2.mean, ymin = mu2.lower, ymax = mu2.higher), data = mu2.tibble, stat = "identity")
+  ggplot2::geom_smooth(aes(x = age, y = mu2.mean, ymin = mu2.lower, ymax = mu2.upper), data = mu2.tibble, stat = "identity") +
+  ggplot2::geom_ribbon(aes(x = age, y = NULL, ymin = weight.lower, ymax = weight.upper), data = pred.tibble, alpha = .5)
 ```
 
+## 3
+
+Now we need to adjust our model to include the interaction with sex. We
+can do what Richard did in lecture 4.
+
+```{r three.data}
+d3 <- d2 %>% 
+  dplyr::mutate(
+    sex = male + 1
+  )
+```
+
+$$ \text{weight}_i \sim \operatorname{Normal}(\mu_i, \sigma) $$
+$$ \mu_i = \alpha_{sex[i]} + \beta_{sex[i]} \text{age}_i$$
+$$ \alpha_j \sim \operatorname{Log-Normal}(1.1, 0.5) $$
+$$ \beta_j \sim \operatorname{Log-Normal}(0.5, 0.7) $$
+$$ \sigma \sim \operatorname{Exponential}(\frac{1}{2}) $$
+
+```{r three.model}
+m3 <- rethinking::quap(
+  alist(
+    weight ~ dnorm(mu, sigma),
+    mu <- a[sex] + b[sex]*age,
+    a[sex] ~ dlnorm(1.1, 0.5),
+    b[sex] ~ dlnorm(0.5, 0.7),
+    sigma ~ dexp(1/2)
+  ), data = d3
+)
+
+rethinking::precis(m3, depth = 2)
+```
+
+This model warns us that it may not have converged. (Edit: It seems that the model does converge with this seed. However, the first time I ran it it did not converge, and had NaN for the values of a[2] and for some values of sigma.)
+
+There seem to be problems estimating the intercept for boys and the
+sigma... Perhaps my prior for sigma is not great? Try again.
+
+Our new prior for sigma is the one Richard tends to use throughout the
+book:
+
+$$ \sigma \sim \operatorname{Exponential}(1) $$
+
+```{r three.model.2}
+m3.2 <- rethinking::quap(
+  alist(
+    weight ~ dnorm(mu, sigma),
+    mu <- a[sex] + b[sex]*age,
+    a[sex] ~ dlnorm(1.1, 0.5),
+    b[sex] ~ dlnorm(0.5, 0.7),
+    sigma ~ dexp(1)
+  ), data = d3
+)
+
+rethinking::precis(m3.2, depth = 2)
+```
+
+This works!
+
+------------------------------------------------------------------------
+
+### Exponential interlude
+
+Let's compare the two priors to understand a little better. What I had
+tried was $\operatorname{Exponential}(\frac{1}{2})$, which I thought
+would be "wider" that his $\operatorname{Exponential}(1)$, since the
+mean is supposed to be the inverse of the rate (so the first prior had a
+mean of 2, while this second prior has a mean of 1).
+
+```{r three.exp.one.half}
+data <- tibble::tibble(
+  x = c(0, 5)
+)
+
+data %>% 
+  ggplot2::ggplot(aes(x = x)) +
+  stat_function(fun = dexp, args = list(rate = 1), color = "red") +
+  stat_function(fun = dexp, args = list(rate = 1/2), color = "blue") 
+```
+
+Ok, so the first prior I had (in blue), is indeed sort of flatter. Is
+that what caused problems? Does it assign too much probability to very
+high SDs? Let's end this interlude on that question.
+
+------------------------------------------------------------------------
+
+Alrighty, back to our `m3.2`.
+
+Let's see the coefficient plot:
+
+```{r three.coef.plot}
+plot(precis(m3.2, depth = 2))
+```
+
+It seems that, after stratifying by sex, the effect of age is similar for boys and girls. But let's actually plot the contrast.
+
+```{r three.contrast.slope}
+age.seq.2 <- seq(from = 0, to = 13, len = 14)
+
+muF <- link(
+  # the model
+  m3.2, 
+  data = list(
+    # just 14 girls
+    sex = rep(1, 14),
+    # one of each age
+    age = age.seq.2
+  )
+)
+
+muM <- link(
+  # the model
+  m3.2, 
+  data = list(
+    # just 14 boys
+    sex = rep(2, 14),
+    # one of each age
+    age = age.seq.2
+  )
+)
+
+mu_contrast <- muF - muM
+
+plot(NULL, xlim = range(age.seq.2), ylim = c(-5,2), xlab = "age (years)", ylab = "weight contrast (F-M)")
+for (p in c(.5, .6, .7, .8, .9, .99))
+  shade(apply(mu_contrast, 2, rethinking::PI, prob = p), age.seq.2)
+abline(h = 0, lty =2)
+```
+
+It looks like, at every age, but especially as age increases, girls weigh, on average, less than boys.
+
+However, if I want to see the contrast in *slope*, shouldn't I draw samples from the posterior and then subtract b[2] from b[1]?
+
+```{r three.slope.contrast}
+m3.2.post <- rethinking::extract.samples(m3.2)
+
+slope.contrast <- m3.2.post$b[,1] - m3.2.post$b[,2]
+
+dens(slope.contrast)
+
+mean(slope.contrast)
+
+rethinking::PI(slope.contrast, prob = 0.89)
+```
+
+I think this means we think that girls grow a little slower than boys as they age from 0 to 12. However, there is still some probability that girls grow faster. 
+
+```{r three.prob.slope.positive}
+sum(slope.contrast > 0)/length(slope.contrast)
+```
+
+Indeed, 16% probability that the slope is higher for girls than boys.
