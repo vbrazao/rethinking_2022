@@ -1,0 +1,39 @@
+---
+title: "Homework - Week 3"
+author: "Vasco Brazão"
+output:
+  pdf_document: default
+  html_document:
+    keep_md: yes
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+library(rethinking)
+library(tidyverse)
+
+set.seed(22012022)
+
+data(foxes)
+
+d <- foxes
+```
+
+## 1
+
+```{r one.data}
+d1 <- d %>% 
+  dplyr::mutate(
+    A = rethinking::standardize(area),
+    F = rethinking::standardize(avgfood)
+  )
+```
+
+Since there is no back-door at all, we can simply regress Food on Area to get the total (and, in this case, also direct) causal effect of A on F. 
+
