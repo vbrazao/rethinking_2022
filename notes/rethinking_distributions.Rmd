@@ -131,3 +131,8 @@ choose(10, 7)
 ```
 
 [Note: could be good to include here a good explainer for the formula?]
+
+## Useful links
+
+https://twitter.com/gongcastro/status/1433726224828882944
+distribution zoo
