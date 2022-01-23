@@ -10,11 +10,10 @@ editor_options:
     wrap: 72
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
-```{r message = FALSE, warning = FALSE}
+
+
+```r
 library(rethinking)
 library(tidyverse)
 
@@ -27,7 +26,8 @@ d <- foxes
 
 ## 1
 
-```{r one.data}
+
+```r
 d1 <- d %>% 
   dplyr::mutate(
     A = rethinking::standardize(area),
@@ -43,7 +43,8 @@ $$ \alpha \sim \operatorname{Normal}(0, 0.2) $$
 $$ \beta \sim \operatorname{Normal}(0, 1) $$
 $$ \sigma \sim \operatorname{Exponential}(1) $$
 
-```{r one.model}
+
+```r
 m1 <- rethinking::quap(
   alist(
     F ~ dnorm(mu, sigma),
@@ -58,11 +59,19 @@ m1 <- rethinking::quap(
 precis(m1)
 ```
 
+```
+##               mean         sd        5.5%      94.5%
+## a     7.843048e-08 0.04230780 -0.06761596 0.06761611
+## b     8.814382e-01 0.04343473  0.81202108 0.95085526
+## sigma 4.662197e-01 0.03051689  0.41744782 0.51499160
+```
+
 From the marginal distribution of $\beta$, we conclude that each standard deviation increase in Area increases Food by .88 SD.
 
 For a plot of the whole thing:
 
-```{r one.plot}
+
+```r
 # mu and 89% PI for mu across all areas in the data
 
 area.seq <- tibble::tibble(
@@ -100,9 +109,12 @@ d1 %>%
   ggplot2::geom_ribbon(aes(x = A, y = NULL, ymin = weight.lower, ymax = weight.upper), data = pred.tibble, alpha = .5)
 ```
 
+![](week03_vasco-brazao_files/figure-html/one.plot-1.png)<!-- -->
+
 ## 2
 
-```{r two.data}
+
+```r
 d2 <- d %>% 
   dplyr::mutate(
     A = rethinking::standardize(area),
@@ -120,7 +132,8 @@ $$ \alpha \sim \operatorname{Normal}(0, 0.2) $$
 $$ \beta \sim \operatorname{Normal}(0, 1) $$
 $$ \sigma \sim \operatorname{Exponential}(1) $$
 
-```{r two.model}
+
+```r
 m2 <- rethinking::quap(
   alist(
     W ~ dnorm(mu, sigma),
@@ -135,6 +148,13 @@ m2 <- rethinking::quap(
 precis(m2)
 ```
 
+```
+##                mean         sd       5.5%     94.5%
+## a     -1.027080e-06 0.08360010 -0.1336101 0.1336081
+## b     -2.482821e-02 0.09203231 -0.1719136 0.1222572
+## sigma  9.911429e-01 0.06465840  0.8878063 1.0944795
+```
+
 Somehow adding food seems to have a rather small effect on the weight of the foxes.
 
 I would speculate that more food leads to larger groups so that each individual fox ends up eating about the same anyway.
@@ -147,7 +167,8 @@ $$ \alpha \sim \operatorname{Normal}(0, 0.2) $$
 $$ \beta_j \sim \operatorname{Normal}(0, 1) $$
 $$ \sigma \sim \operatorname{Exponential}(1) $$
 
-```{r two.model.2}
+
+```r
 m2.2 <- rethinking::quap(
   alist(
     W ~ dnorm(mu, sigma),
@@ -161,6 +182,14 @@ m2.2 <- rethinking::quap(
 )
 
 precis(m2.2)
+```
+
+```
+##                mean         sd       5.5%      94.5%
+## a     -9.951017e-06 0.07995525 -0.1277939  0.1277740
+## bF     5.916044e-01 0.19540629  0.2793074  0.9039014
+## bG    -6.890407e-01 0.19540789 -1.0013403 -0.3767412
+## sigma  9.394854e-01 0.06133642  0.8414580  1.0375129
 ```
 
 Indeed, for each level of groupsize, more food seems to imply more weight. And symmetrically, once we know the amount of food, higher group sizes are indicative of lower individual weight. 
@@ -185,7 +214,8 @@ So, our adjustment set: $\mathbb{S} = \{A, S\}$.
 
 Does daggity agree?
 
-```{r three.daggity}
+
+```r
 dag <- dagitty::dagitty('dag {
                         A -> S <- U -> Y
                         A -> X <- S -> Y
@@ -194,12 +224,24 @@ dag <- dagitty::dagitty('dag {
 }' )
 
 plot(dag)
+```
 
+```
+## Plot coordinates for graph not supplied! Generating coordinates, see ?coordinates for how to set your own.
+```
+
+![](week03_vasco-brazao_files/figure-html/three.daggity-1.png)<!-- -->
+
+```r
 dagitty::adjustmentSets(
   x = dag,
   exposure = "X",
   outcome = "Y"
 )
+```
+
+```
+## { A, S }
 ```
 
 We have agreement!
@@ -210,24 +252,4 @@ Now, if we regressed Y on X, S, and A, what would we be calculating?
 2. For S, we would be estimating its **direct effect**. Unfortunately, this would be confounded by U, since we did not block the fork $S \leftarrow U \rightarrow Y$.
 3. For A, we would be estimating its **direct effect**. While adjusting for X and S closes all frontdoor paths, we also open up the path through S as a collider ($A \rightarrow S \leftarrow U \rightarrow Y$), so this estimate would also be confounded...
 
-## 4
-
-```{r four.simulate}
-# number of data points
-n <- 50
-# the variables not influenced by any others
-A <- rnorm(n = n)
-U <- rnorm(n = n)
-
-# vars only influenced by A and U
-S <- rnorm(n = n, mean = A + U)
-
-# the rest
-X <- rnorm(n = n, mean = A + S)
-Y <- rnorm(n = n, mean = A + S + X + U)
-
-dat <- tibble::tibble(
-  A, U, S, X, Y
-)
-```
 
