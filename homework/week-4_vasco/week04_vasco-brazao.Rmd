@@ -1,0 +1,94 @@
+---
+title: "Homework - Week 4"
+author: "Vasco Brazão"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+library(rethinking)
+library(tidyverse)
+
+set.seed(29012022)
+```
+
+## 1
+
+```{r one.data}
+d <- sim_happiness(seed = 1977, N_years = 1000)
+
+d2 <- d[d$age > 17, ]
+
+d2$A <- (d2$age-18) / (65 -18)
+
+d2$mid <- d2$married + 1
+```
+
+```{r one.models}
+# m6.9 <- ulam(
+#   alist(
+#     happiness ~ dnorm(mu, sigma),
+#     mu <- a[mid] + bA*A,
+#     a[mid] ~ dnorm(0, 1),
+#     bA ~ dnorm(0, 2),
+#     sigma ~ dexp(1)
+#   ), data = d2, chains = 4, cores = 4
+# )
+# 
+# m6.10 <- ulam(
+#   alist(
+#     happiness ~ dnorm(mu, sigma),
+#     mu <- a + bA*A,
+#     a ~ dnorm(0, 1),
+#     bA ~ dnorm(0, 2),
+#     sigma ~ dexp(1)
+#   ), data = d2, chains = 4, cores = 4
+# )
+# 
+
+m6.9 <- quap(
+  alist(
+    happiness ~ dnorm(mu, sigma),
+    mu <- a[mid] + bA*A,
+    a[mid] ~ dnorm(0, 1),
+    bA ~ dnorm(0, 2),
+    sigma ~ dexp(1)
+  ), data = d2
+)
+
+m6.10 <- quap(
+  alist(
+    happiness ~ dnorm(mu, sigma),
+    mu <- a + bA*A,
+    a ~ dnorm(0, 1),
+    bA ~ dnorm(0, 2),
+    sigma ~ dexp(1)
+  ), data = d2
+)
+
+precis(m6.9, depth = 2)
+
+precis(m6.10)
+```
+
+```{r one.model.comparison}
+compare(m6.9, m6.10)
+
+compare(m6.9, m6.10, func = PSIS)
+```
+
+Both indicators prefer model m6.9, which predicts happiness by age while stratifying for marriage status.
+
+Assuming the simple DAG in the book, $H \rightarrow M \leftarrow A$, we are capturing a non-causal association between age and happiness, brought about by conditioning on collider H. Still, we can interpret the coefficients as follows: Once we know someone's marital status, knowing their age helps us to predict their happiness more accurately. Symmetrically, if we already know someone's age, learning their marital status helps us to better predict their happiness.
+
+
+
