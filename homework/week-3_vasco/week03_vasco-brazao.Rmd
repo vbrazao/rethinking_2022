@@ -231,3 +231,4 @@ dat <- tibble::tibble(
 )
 ```
 
+Did the data simulation, no time to check how different sample sizes affect ability to recover the correct parameters, but I might still try later on.
