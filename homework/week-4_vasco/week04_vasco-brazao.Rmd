@@ -33,48 +33,50 @@ d2$A <- (d2$age-18) / (65 -18)
 d2$mid <- d2$married + 1
 ```
 
-```{r one.models}
-# m6.9 <- ulam(
-#   alist(
-#     happiness ~ dnorm(mu, sigma),
-#     mu <- a[mid] + bA*A,
-#     a[mid] ~ dnorm(0, 1),
-#     bA ~ dnorm(0, 2),
-#     sigma ~ dexp(1)
-#   ), data = d2, chains = 4, cores = 4
-# )
-# 
-# m6.10 <- ulam(
-#   alist(
-#     happiness ~ dnorm(mu, sigma),
-#     mu <- a + bA*A,
-#     a ~ dnorm(0, 1),
-#     bA ~ dnorm(0, 2),
-#     sigma ~ dexp(1)
-#   ), data = d2, chains = 4, cores = 4
-# )
-# 
-
-m6.9 <- quap(
+```{r one.models, cache = TRUE}
+m6.9 <- ulam(
   alist(
     happiness ~ dnorm(mu, sigma),
     mu <- a[mid] + bA*A,
     a[mid] ~ dnorm(0, 1),
     bA ~ dnorm(0, 2),
     sigma ~ dexp(1)
-  ), data = d2
+  ), data = d2, chains = 4, cores = 4, log_lik = TRUE
 )
 
-m6.10 <- quap(
+m6.10 <- ulam(
   alist(
     happiness ~ dnorm(mu, sigma),
     mu <- a + bA*A,
     a ~ dnorm(0, 1),
     bA ~ dnorm(0, 2),
     sigma ~ dexp(1)
-  ), data = d2
+  ), data = d2, chains = 4, cores = 4, log_lik = TRUE
 )
 
+
+# m6.9 <- quap(
+#   alist(
+#     happiness ~ dnorm(mu, sigma),
+#     mu <- a[mid] + bA*A,
+#     a[mid] ~ dnorm(0, 1),
+#     bA ~ dnorm(0, 2),
+#     sigma ~ dexp(1)
+#   ), data = d2
+# )
+# 
+# m6.10 <- quap(
+#   alist(
+#     happiness ~ dnorm(mu, sigma),
+#     mu <- a + bA*A,
+#     a ~ dnorm(0, 1),
+#     bA ~ dnorm(0, 2),
+#     sigma ~ dexp(1)
+#   ), data = d2
+# )
+```
+
+```{r one.model.precis}
 precis(m6.9, depth = 2)
 
 precis(m6.10)
@@ -88,7 +90,76 @@ compare(m6.9, m6.10, func = PSIS)
 
 Both indicators prefer model m6.9, which predicts happiness by age while stratifying for marriage status.
 
-Assuming the simple DAG in the book, $H \rightarrow M \leftarrow A$, we are capturing a non-causal association between age and happiness, brought about by conditioning on collider H. Still, we can interpret the coefficients as follows: Once we know someone's marital status, knowing their age helps us to predict their happiness more accurately. Symmetrically, if we already know someone's age, learning their marital status helps us to better predict their happiness.
+Assuming the simple DAG in the book, $H \rightarrow M \leftarrow A$, we are capturing a non-causal association between age and happiness, brought about by conditioning on collider M. Still, we can interpret the coefficients as follows: Once we know someone's marital status, knowing their age helps us to predict their happiness more accurately. Symmetrically, if we already know someone's age, learning their marital status helps us to better predict their happiness.
 
+## 2
 
+```{r two.data}
+data("foxes")
 
+d2 <- foxes %>% 
+  dplyr::mutate(
+    A = rethinking::standardize(area),
+    F = rethinking::standardize(avgfood),
+    W = rethinking::standardize(weight),
+    G = rethinking::standardize(groupsize)
+  )
+```
+
+To solve this exercise, we first run the same models as last week, and include one with just the interaction of food and group size for fun.
+
+```{r two.models}
+# weight on food
+m1 <- rethinking::quap(
+  alist(
+    W ~ dnorm(mu, sigma),
+    mu <- a + b*F,
+    a ~ dnorm(0, 0.2),
+    b ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ), 
+  data = d2
+)
+
+# weight on food and groupsize
+m2 <- rethinking::quap(
+  alist(
+    W ~ dnorm(mu, sigma),
+    mu <- a + bF*F + bG*G,
+    a ~ dnorm(0, 0.2),
+    bF ~ dnorm(0, 1),
+    bG ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ), 
+  data = d2
+)
+
+# weight on interaction food by groupsize
+m3 <- rethinking::quap(
+  alist(
+    W ~ dnorm(mu, sigma),
+    mu <- a + bFG*F*G,
+    a ~ dnorm(0, 0.2),
+    bFG ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ), 
+  data = d2
+)
+
+```
+
+```{r two.models.precis}
+precis(m1)
+
+precis(m2)
+
+precis(m3)
+```
+
+```{r two.models.compare}
+compare(m1, m2, m3)
+
+compare(m1, m2, m3, func = PSIS)
+```
+
+Both time, m2 wins - but barely. In that model, bF is the direct effect of food on weight, while bG is the total effect of groupsize on weight (because we controlled for confounder F).
