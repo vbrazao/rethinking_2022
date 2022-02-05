@@ -163,3 +163,97 @@ compare(m1, m2, m3, func = PSIS)
 ```
 
 Both time, m2 wins - but barely. In that model, bF is the direct effect of food on weight, while bG is the total effect of groupsize on weight (because we controlled for confounder F).
+
+# 3
+
+```{r three.data}
+data("cherry_blossoms")
+
+d3.0 <- cherry_blossoms %>% 
+  filter(
+    complete.cases(doy, temp)
+  ) 
+
+d3 <- d3.0 %>%  
+  mutate(
+    across(
+      .cols = -year,
+      .fns = ~rethinking::standardize(.x)
+    )
+  ) 
+```
+
+```{r three.models}
+m3.1 <- rethinking::quap(
+  alist(
+    doy ~ dnorm(mu, sigma),
+    mu <- a + b*temp,
+    a ~ dnorm(0, 0.2),
+    b ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ), data = d3
+)
+
+m3.2 <- rethinking::quap(
+  alist(
+    doy ~ dstudent(2,mu,sigma),
+    mu <- a + b*temp,
+    a ~ dnorm(0, 0.2),
+    b ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ), data = d3
+)
+
+m3.3 <- rethinking::quap(
+  alist(
+    doy ~ dnorm(mu,sigma),
+    mu <- a + b*temp,
+    sigma <- as + b2*temp,
+    a ~ dnorm(0, 0.2),
+    as ~ dexp(1),
+    b ~ dnorm(0, 1),
+    b2 ~ dnorm(0, 0.2)
+  ), data = d3
+)
+```
+
+```{r three.compare}
+compare(m3.1, m3.2, m3.3)
+
+compare(m3.1, m3.2, m3.3, func = PSIS)
+```
+
+The thirds model wins both times. In this model, we modeled the mu of doy as a linear function of temperature, and we also modeled the sigma as a linear function of temperature, which seems to provide an edge in out of sample prediction. So we will use samples from this posterior to predict the doy if march temperature reached 9 degrees. 
+
+First, we need to turn 9 degrees into a z-score.
+
+```{r three.zscoring}
+meantemp <- mean(d3.0$temp)
+meandoy <- mean(d3.0$doy)
+
+sdtemp <- sd(d3.0$temp)
+sddoy <- sd(d3.0$doy)
+
+z9 <- (9-meantemp)/sdtemp
+```
+
+```{r three.predict}
+simdoy <- rethinking::sim(m3.3, data = list(temp = z9))
+
+# unstandardize please
+
+pred.doy <- simdoy*sddoy + meandoy
+
+dens(pred.doy, col = 3)
+
+#to compare with observed data
+
+dens(d3.0$doy, add = TRUE)
+```
+
+We see that our model predicts both a much earlier blossom as well as a tighter density (because it expects SD to shrink as temperatures rise).
+
+Cool! My first time modeling SD :D
+
+
+
