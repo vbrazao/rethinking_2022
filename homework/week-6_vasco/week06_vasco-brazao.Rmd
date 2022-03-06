@@ -1,0 +1,26 @@
+---
+title: "Homework - Week 6"
+author: "Vasco Brazão"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+library(rethinking)
+library(tidyverse)
+library(dagitty)
+
+set.seed(06032022)
+```
+
+## 1
+
