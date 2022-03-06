@@ -1,0 +1,177 @@
+---
+title: "Homework - Week 5"
+author: "Vasco Brazão"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+library(rethinking)
+library(tidyverse)
+library(dagitty)
+
+set.seed(19022022)
+```
+
+## 1
+
+```{r one.data}
+data("NWOGrants")
+
+d1 <- NWOGrants %>%
+  dplyr::mutate(
+    gender = dplyr::case_when(
+      gender == "m" ~ 1,
+      gender == "f" ~ 2
+    )
+  )
+```
+
+Our DAG for this situation:
+
+```{r one.dag}
+dag1 <- dagitty::dagitty("dag{
+  gender -> discipline;
+  gender -> awards;
+  discipline -> awards
+}")
+
+plot(dag1)
+```
+
+To estimate the total effect of gender, we really only need to include gender as a predictor. 
+
+```{r one.model}
+m1 <- rethinking::ulam(
+  alist(
+    awards ~ binomial(applications, p),
+    logit(p) <- a[gender],
+    a[gender] ~ normal(0, 1)
+  ),
+  data = d1, chains = 4, cores = 4
+)
+```
+
+Now to check the model:
+
+```{r one.summary}
+precis(m1, depth = 2)
+```
+
+This looks OK. In total, it looks like female applicants are at a slight disadvantage, but we best confirm that later by computing the comparison itself. First, some more diagnostics:
+
+```{r one.trace.trank}
+traceplot(m1)
+
+trankplot(m1)
+```
+
+Wonderful!
+
+To the contrast.
+
+```{r one.contrast}
+m1_post <- rethinking::extract.samples(m1)
+
+m1_probs <- tibble(
+  p_male = rethinking::inv_logit(m1_post$a[, 1]),
+  p_female = rethinking::inv_logit(m1_post$a[, 2]),
+  diff_male_female = p_male - p_female
+)
+
+m1_probs %>%
+  ggplot(aes(x = diff_male_female)) +
+  geom_density()
+```
+
+It seems for this data set, too, males are at some advantage - around 3 percentage points.
+
+## 2 
+
+```{r two.data}
+d2 <- d1 %>%
+  mutate(
+    discipline = as.integer(discipline)
+  )
+```
+
+For the direct effect of gender, we'll need to include departments in the analysis and then marginalize over them.
+
+```{r two.model}
+m2 <- rethinking::ulam(
+  alist(
+    awards ~ binomial(applications, p),
+    logit(p) <- a[gender, discipline],
+    matrix[gender, discipline]:a ~ normal(0, 1)
+  ),
+  data = d2, chains = 4, cores = 4
+)
+```
+
+First, a summary:
+
+```{r two.summary}
+precis(m2, depth = 3)
+```
+
+N_effs and rhats are good. Further diagnostics:
+
+```{r two.trace.trank}
+traceplot(m2)
+
+trankplot(m2)
+```
+
+Looking pretty good!
+
+Now, to marginalize, following Richard's code. 
+
+```{r two.marge}
+# we want to simulate as many apps as there were in the data
+
+n_apps <- sum(d2$applications)
+
+# we also want each department to have as many app as in the data
+
+# apps_per_dept <- sapply(1:6, function (i) sum(d2$applications[d2$discipline==i]))
+
+# can I do it in tidyverse?? i can! is it more pretty though??
+
+apps_per_dept <- purrr::map_dbl(
+  .x = 1:9,
+  .f = ~ filter(d2, discipline == .x) %>%
+    pull(applications) %>%
+    sum()
+)
+
+# let's get results just for men
+
+p_male <- link(m2, data = list(
+  discipline = rep(1:9, times = apps_per_dept),
+  applications = rep(1, n_apps),
+  gender = rep(1, n_apps)
+))
+
+p_female <- link(m2, data = list(
+  discipline = rep(1:9, times = apps_per_dept),
+  applications = rep(1, n_apps),
+  gender = rep(2, n_apps)
+))
+
+dens(p_male - p_female)
+```
+
+Now it looks like, on average, the direct effect is close to zero, although the distribution is clearly bimodal, with one mode benefitting men and another benefitting women slightly...
+
+## 3
+
+This pattern shows how self-selection (influenced by gender!) onto departments with differing admissions rates can create a picture of gender bias in one direction in the aggregate, all while each department can have their own level of gender bias in any direction.
