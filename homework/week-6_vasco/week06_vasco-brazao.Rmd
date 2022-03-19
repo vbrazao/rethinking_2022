@@ -361,4 +361,69 @@ Now we want to include density as a predictor of survival, and perhaps also esti
 
 Let's look first at the main effect of density on survival.
 
+We only have three densities -- 10, 25, and 35 tadpoles. Whatever the effect of density, I want to assume that it's monotonic. Let's try to apply what we learned earlier about using ordered categories as monotonic predictors.
 
+```{r three.data}
+d3 <- d2 %>% 
+  dplyr::mutate(
+    density_ord = dplyr::case_when(
+      density == 10 ~ 1,
+      density == 25 ~ 2,
+      density == 35 ~ 3
+    )
+  )
+
+d3lst <- list(
+  surv = d3$surv,
+  density = d3$density,
+  tank = d3$tank,
+  density_ord = as.integer(d3$density_ord),
+  pred = d3$pred,
+  alpha = rep(2,2)
+)
+```
+
+Now that the data is prepped, we can fit our first model.
+
+```{r three.model.dens}
+m3.1 <- rethinking::ulam(
+  alist(
+    surv ~ dbinom(density, p),
+    logit(p) <- a_bar + z[tank]*sigma_t + bD*sum(delta_j[1:density_ord]),
+    bD ~ dnorm(0, 1),
+    z[tank] ~ dnorm(0, 1),
+    a_bar ~ dnorm(0, 1.5),
+    sigma_t ~ dexp(1),
+    gq> vector[tank]:a <<- a_bar + z*sigma_t,
+    vector[3]: delta_j <<- append_row(0, delta),
+    simplex[2]: delta ~ dirichlet(alpha)
+  ), data = d3lst, chains = 4, cores = 4, log_lik = TRUE, iter = 2000
+)
+
+precis(m3.1)
+```
+
+Perhaps there is a negative effect of density, but there's also a lot of uncertainty around it. Once again, it may be that this results from an interaction with predation -- if there are no predators, the density doesn't matter, but if there are, they'll have an easier time catching tadpoles in tanks where there are more tadpoles to begin with? Let's try stratifying bD by the predators.
+
+```{r three.model.dens.pred}
+m3.2 <- rethinking::ulam(
+  alist(
+    surv ~ dbinom(density, p),
+    logit(p) <- a_bar + z[tank]*sigma_t + bP[pred] + bD[pred]*sum(delta_j[1:density_ord]),
+    bP[pred] ~ dnorm(0, 1),
+    bD[pred] ~ dnorm(0, 1),
+    z[tank] ~ dnorm(0, 1),
+    a_bar ~ dnorm(0, 1.5),
+    sigma_t ~ dexp(1),
+    gq> vector[tank]:a <<- a_bar + z*sigma_t,
+    vector[3]: delta_j <<- append_row(0, delta),
+    simplex[2]: delta ~ dirichlet(alpha)
+  ), data = d3lst, chains = 4, cores = 4, log_lik = TRUE, iter = 2000
+)
+
+precis(m3.2, depth = 2)
+```
+
+Interesting! We see that, without predators, density has no effect on the probability of survival, but it decreases survival for tanks with predators!
+
+$\sigma$ in our case is about the same, though I would have expected it to be a little than in the previous problem. 
