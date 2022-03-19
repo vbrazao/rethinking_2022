@@ -16,11 +16,349 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r message = FALSE, warning = FALSE}
 library(rethinking)
+library(tidybayes)
 library(tidyverse)
 library(dagitty)
+library(patchwork)
 
 set.seed(06032022)
 ```
 
+FINALLY, multi-level modeling!
+
 ## 1
+
+So, we want to better understand the priors in this model:
+
+$$ 
+D \sim \operatorname{Bernoulli(p)} \\
+logit(p) = \alpha_{j[tank]} \\
+\alpha_j \sim \operatorname{Normal(\bar{\alpha}, \sigma)} \\
+\bar{\alpha} \sim \operatorname{Normal(0, 1)} \\
+\sigma \sim \operatorname{Exponential(1)}
+$$
+
+Let's see what a simulation of alphas, and corresponding probability values, tells us about these priors in particular.
+
+```{r one.sim.fixed}
+abar <- rnorm(n = 1000, mean = 0, sd = 1)
+
+sigma <- rexp(n = 1000, rate = 1)
+
+a_j <- rnorm(n = 1000, mean = abar, sd = sigma)
+
+p_j <- rethinking::inv_logit(a_j)
+
+ggplot(data = data.frame(a = a_j), aes(x = a)) +
+  geom_density()
+
+ggplot(data = data.frame(p = p_j), aes(x = p)) +
+  geom_density()
+```
+Probability seems to be highest around .5, but there's a lot of room for $p_j$ to be higher or lower. 
+
+More generally, we want to see how the distribution of $\alpha_j$ and $p_j$ changes as we change the priors, so we can replace the fixed values with parameters:
+
+$$ 
+D \sim \operatorname{Bernoulli(p)} \\
+logit(p) = \alpha_{j[tank]} \\
+\alpha_j \sim \operatorname{Normal(\bar{\alpha}, \sigma)} \\
+\bar{\alpha} \sim \operatorname{Normal(\alpha_i, \sigma_i)} \\
+\sigma \sim \operatorname{Exponential(\lambda_i)}
+$$
+
+And then make some convenience functions.
+
+```{r one.fns}
+get_sims <- function(n, mean, sd, rate) {
+  abar <- rnorm(n = n, mean = mean, sd = sd)
+
+  sigma <- rexp(n = n, rate = rate)
+
+  dat <- tibble::tibble(
+    a_j = rnorm(n = n, mean = abar, sd = sigma),
+    p_j = rethinking::inv_logit(a_j)
+  )
+  
+  return(dat)
+}
+
+plot_a <- function(n = 5000, mean = 0, sd = 1, rate = 1){
+  d <- get_sims(n = n, mean = mean, sd = sd, rate = rate)
+
+  d %>% 
+    ggplot(aes(x = a_j)) +
+    geom_density() +
+    ggtitle(label = paste("Alphas for Mean = ", mean, 
+                          ", SD = ", sd,
+                          ", Lambda = ", rate)
+            )
+}
+
+plot_p <- function(n = 5000, mean = 0, sd = 1, rate = 1){
+  d <- get_sims(n = n, mean = mean, sd = sd, rate = rate)
+  
+  d %>% 
+    ggplot(aes(x = p_j)) +
+    geom_density() +
+    ggtitle(label = paste("Probs for Mean = ", mean, 
+                          ", SD = ", sd,
+                          ", Lambda = ", rate)
+            )
+}
+```
+
+Ok, so. First, let's recall what happens if we make the prior for $\bar{alpha}$ too thin:
+
+```{r one.alpha.thin}
+pars <- tibble::tibble(
+  mean = 0,
+  sd = .1,
+  rate = 1
+)
+
+p1 <- plot_a(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+p2 <- plot_p(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+
+p1 / p2
+```
+
+This really concentrates probability around .5. Can we fix it by letting the sd vary more?
+
+```{r one.alpha.thin.low.rate}
+pars <- tibble::tibble(
+  mean = 0,
+  sd = .1,
+  rate = .5
+)
+
+p1 <- plot_a(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+p2 <- plot_p(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+
+p1 / p2
+```
+
+This seems to make a cool wavey result - there's still a hill on .5, but now there are also two smaller hills closer to the bounds. Likely becuase of the now fatter tails of alpha. Let's exaggerate this:
+
+```{r one.alpha.thin.lower.rate}
+pars <- tibble::tibble(
+  mean = 0,
+  sd = .1,
+  rate = .05
+)
+
+p1 <- plot_a(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+p2 <- plot_p(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+
+p1 / p2
+```
+
+So basically, by letting the prior for sd allow for very large variances, we cluster probability away from the middle and towards the bounds.
+
+Let's now set the rate higher, so that in effect we expect the SD for the alphas to be small:
+
+```{r one.alpha.thin.high.rate}
+pars <- tibble::tibble(
+  mean = 0,
+  sd = .1,
+  rate = 10
+)
+
+p1 <- plot_a(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+p2 <- plot_p(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+
+p1 / p2
+```
+
+Basically it matters less and less.
+
+Now, let's make the prior for $\bar{\alpha}$ wider, with a reasonable rate (which defines the prior for the $\sigma$).
+
+```{r one.alpha.thick}
+pars <- tibble::tibble(
+  mean = 0,
+  sd = 2,
+  rate = 1
+)
+
+p1 <- plot_a(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+p2 <- plot_p(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+
+p1 / p2
+```
+
+Immediately we see concerntration of probability around the bounds. But we can make it worse! Let's have very "flat" prior.
+
+```{r one.alpha.thicker}
+pars <- tibble::tibble(
+  mean = 0,
+  sd = 10,
+  rate = 1
+)
+
+p1 <- plot_a(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+p2 <- plot_p(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+
+p1 / p2
+```
+
+Jesus. 
+
+And let's also lower the rate, fattening the tails evermore.
+
+```{r one.alpha.thicker.low.rate}
+pars <- tibble::tibble(
+  mean = 0,
+  sd = 10,
+  rate = .1
+)
+
+p1 <- plot_a(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+p2 <- plot_p(mean = pars$mean, sd = pars$sd, rate = pars$rate)
+
+
+p1 / p2
+```
+
+This is why flat priors are anything but uninformative!!
+
+## 2
+
+First we get the data ready.
+
+```{r two.data}
+data(reedfrogs)
+
+d2 <- reedfrogs %>% 
+  dplyr::mutate(
+    tank = 1:nrow(reedfrogs), 
+    pred = dplyr::case_when(
+      pred == "pred" ~ 2,
+      pred == "no" ~ 1
+    ),
+    size = dplyr::case_when(
+      size == "big" ~ 2,
+      size == "small" ~ 1
+    )
+  ) %>% 
+  dplyr::rename(
+    # "size" is a reserved word in stan (??)
+    sizes = size
+  )
+```
+
+Now we estimate the simple model.
+
+```{r two.model.simple}
+m2.1 <- rethinking::ulam(
+  alist(
+    surv ~ dbinom(density, p),
+    logit(p) <- a[tank],
+    a[tank] ~ dnorm(a_bar, sigma),
+    a_bar ~ dnorm(0, 1.5),
+    sigma ~ dexp(1)
+  ), data = d2, chains = 4, log_lik = TRUE
+)
+
+precis(m2.1)
+```
+
+We know this model runs well (from the lecture), so I won't worry about that now.
+
+We want to estimate the effect of the presence of predators and of tadpole size on survival. From the DAG, we conclude that there is no confounding going on, so it would be perfectly plausible to estimate two models, one for each predictor. However, the problem itself suggests running a full interaction model. 
+
+```{r two.model.interaction}
+m2.2 <- rethinking::ulam(
+  alist(
+    surv ~ dbinom(density, p),
+    logit(p) <- a[tank] + b[pred, sizes],
+    matrix[pred, sizes]:b ~ dnorm(0, 1),
+    a[tank] ~ dnorm(a_bar, sigma),
+    a_bar ~ dnorm(0, 1.5),
+    sigma ~ dexp(1)
+  ), data = d2, chains = 4, log_lik = TRUE
+)
+
+precis(m2.2, depth = 3)
+```
+
+Sadly, this model runs terribly. ESS are quite low, and the Rhats are higher than desired.  
+
+For some reason, if we change it to be the same as the solutions, fixing $\bar{\alpha}$ at 0 rather than including a normal hyperprior for it, it runs better! 
+
+```{r two.model.interaction.solutions}
+m2.3 <- rethinking::ulam(
+  alist(
+    surv ~ dbinom(density, p),
+    logit(p) <- a[tank] + b[pred, sizes],
+    matrix[pred, sizes]:b ~ dnorm(0, 1),
+    a[tank] ~ dnorm(0, sigma),
+    sigma ~ dexp(1)
+  ), data = d2, chains = 4, log_lik = TRUE
+)
+
+precis(m2.3, depth = 3)
+```
+
+There is still a low-ish ESS for sigma, but Rhats look happy. What does comparing the models tell us?
+
+```{r two.compare}
+compare(m2.1, m2.2, m2.3, func = WAIC)
+
+compare(m2.1, m2.2, m2.3, func = PSIS)
+```
+
+The latest model is *slightly* better. However, PSIS complains about high pareto k values. Let's inspect.
+
+```{r two.paretok}
+PSIS(m2.1, pointwise = TRUE)
+
+PSIS(m2.2, pointwise = TRUE)
+
+PSIS(m2.3, pointwise = TRUE)
+```
+
+Unfortunately, I'm not quite sure what to do with this. If the likelihood was normal we could switch to a similar distribution with fatter tails, but as our likelihood is binomial I don't know what we can do. So for now we move on.
+
+As I think more about this, what if `m2.2` worked poorly because of the centered parameterization? As an extra exercise, I'll try to make it non-centered and see if that fixes things.
+
+```{r two.model.interaction.nc}
+m2.2nc <- rethinking::ulam(
+  alist(
+    surv ~ dbinom(density, p),
+    logit(p) <- a_bar + z[tank]*sigma_t + b[pred, sizes],
+    matrix[pred, sizes]:b ~ dnorm(0, 1),
+    z[tank] ~ dnorm(0, 1),
+    a_bar ~ dnorm(0, 1.5),
+    sigma_t ~ dexp(1),
+    gq> vector[tank]:a <<- a_bar + z*sigma_t
+  ), data = d2, chains = 4, log_lik = TRUE
+)
+
+precis(m2.2nc, depth = 3)
+```
+
+Aha! So we can use this non-centered model for inference. 
+
+It looks like survival is predictably higher for tanks without predation, and that for that case the size of the tadpoles doesn't matter much. However, once we introduce predation, not only does survival probability lower, it does so *much more* for tanks with large tadpoles. So perhaps size, while not providing any survival benefits itself, does make tadpoles easier to catch and thus kill.
+
+## 3
+
+Now we want to include density as a predictor of survival, and perhaps also estimate how the effects of density and predation interact. 
+
+Let's look first at the main effect of density on survival.
+
 
