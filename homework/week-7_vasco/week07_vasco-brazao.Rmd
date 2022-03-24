@@ -1,0 +1,100 @@
+---
+title: "Homework - Week 7"
+author: "Vasco Brazão"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+library(rethinking)
+library(tidybayes)
+library(tidyverse)
+library(dagitty)
+library(patchwork)
+
+set.seed(24032022)
+```
+
+## 1
+
+```{r one.data}
+data(bangladesh)
+
+d <- bangladesh
+
+d1 <- d %>% 
+  group_by(district) %>% 
+  summarise(
+    n = n(),
+    n_contraception = sum(use.contraception)
+  )
+```
+
+Let's look at the raw proportions:
+
+```{r one.eda}
+p1.1 <- d1 %>% 
+  ggplot(aes(x = district, y = n_contraception/n)) +
+  geom_point()
+
+p1.1
+```
+
+Now we can run a simple varying intercepts model. Let's write it in mathstats first.
+
+$$
+C_i \sim \operatorname{Binomial(N_i, p_i)} \\
+logit(p_i) = \alpha_{district[i]} \\ 
+\alpha_{district} \sim \operatorname{Normal(\bar{\alpha}, \sigma)} \\
+\bar{\alpha} \sim \operatorname{Normal(0, 1.5)} \\
+\sigma \sim \operatorname{Exponential(1)}
+$$
+
+```{r one.model}
+m1 <- rethinking::ulam(
+  alist(
+    n_contraception ~ dbinom(n, p),
+    logit(p) <- a[district],
+    vector[61]:a ~ dnorm(a_bar, sigma_a),
+    a_bar ~ dnorm(0, 1.5),
+    sigma_a ~ dexp(1)
+  ), data = d1, chains = 4, cores =4, log_lik = TRUE
+)
+
+precis(m1, depth = 2)
+```
+
+```{r one.predictions}
+posterior <- rethinking::extract.samples(m1)
+
+probs <- rethinking::inv_logit(posterior$a)
+
+means <- apply(probs, 2, mean)
+
+pi <- apply(probs, 2, rethinking::PI)
+
+d_posterior <- tibble::tibble(
+  district = 1:61,
+  mean = means,
+  higher = pi[2,],
+  lower = pi[1,],
+  highlight = ifelse(district == 54, "yes", "no")
+)
+
+p1.1 +
+  geom_linerange(aes(y = NULL, ymin = lower, ymax = higher, color = highlight), data = d_posterior, alpha = .5, size = 1.25) +
+  geom_point(aes(y = means, color = highlight), data = d_posterior, alpha = .5, size = 2) +
+  theme(legend.position = "none")
+```
+
+As expected the estimates were shrunk towards the grand mean, much more for those districts with extreme values or little data. District 54, which didn't have any data, still gets an estimate! It is closest to the grand mean and has more uncertainty than the others.
+
