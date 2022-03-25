@@ -19,7 +19,7 @@ library(rethinking)
 library(tidybayes)
 library(tidyverse)
 library(dagitty)
-library(patchwork)
+
 
 set.seed(24032022)
 ```
@@ -97,4 +97,49 @@ p1.1 +
 ```
 
 As expected the estimates were shrunk towards the grand mean, much more for those districts with extreme values or little data. District 54, which didn't have any data, still gets an estimate! It is closest to the grand mean and has more uncertainty than the others.
+
+## 2
+
+My DAG:
+
+```{r two.dag}
+dag2 <- dagitty::dagitty(
+  "dag{
+  D -> C;
+  D -> U;
+  U -> C;
+  U -> K;
+  K -> C;
+  A -> K;
+  A -> U;
+  A -> D;
+  A -> C;
+}"
+)
+
+plot(dag2)
+```
+
+With my DAG, we must do a lot of adjustment. For the direct causal effect, we must adjust by A and D, both common causes of U and C, as well as K, which is in the pipe $U \rightarrow K \rightarrow C$. To get the total causal effect we don't adjust for K.
+
+Let's confirm this analysis:
+
+```{r two.condind}
+dagitty::adjustmentSets(
+  x = dag2,
+  exposure = "U",
+  outcome = "C",
+  effect = "total"
+)
+
+dagitty::adjustmentSets(
+  x = dag2,
+  exposure = "U",
+  outcome = "C",
+  effect = "direct"
+)
+```
+
+Indeed!
+
 
