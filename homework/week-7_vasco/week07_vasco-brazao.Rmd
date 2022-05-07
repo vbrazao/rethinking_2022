@@ -67,7 +67,7 @@ m1 <- rethinking::ulam(
     vector[61]:a ~ dnorm(a_bar, sigma_a),
     a_bar ~ dnorm(0, 1.5),
     sigma_a ~ dexp(1)
-  ), data = d1, chains = 4, cores =4, log_lik = TRUE
+  ), data = d1, chains = 4, cores = 4, log_lik = TRUE
 )
 
 precis(m1, depth = 2)
@@ -143,3 +143,62 @@ dagitty::adjustmentSets(
 Indeed!
 
 
+## 3
+
+```{r two.data}
+d2 <- list(
+    D = d$district,
+    A = d$age.centered / sd(d$age.centered),
+    K = d$living.children,
+    U = d$urban,
+    C = d$use.contraception,
+    alpha = rep(2, 3)
+  )
+```
+
+
+For the total causal effect of urban living on contraceptive use, we stratify by age and district. We can adapt the model we used earlier.
+
+
+```{r two.model.total}
+m2 <- rethinking::ulam(
+  alist(
+    C ~ dbern(p),
+    logit(p) <- a[D] + b_age*A + b_urban*U,
+    vector[61]:a ~ dnorm(a_bar, sigma_a),
+    a_bar ~ dnorm(0, 1.5),
+    sigma_a ~ dexp(1),
+    b_age ~ dnorm(0, 1.5),
+    b_urban ~ dnorm(0, 1.5)
+  ), data = d2, chains = 4, cores = 4, log_lik = TRUE
+)
+
+precis(m2, depth = 2)
+```
+
+According to this model, U is reliably and positively related to contraceptive use. 
+
+However, this is the total effect. What is the direct effect? For that we must also include the number of children in the model. Once again we can practice monotonic effects.
+
+```{r two.model.direct}
+m2.1 <- rethinking::ulam(
+  alist(
+    C ~ dbern(p),
+    logit(p) <- a[D] + b_age*A + b_urban*U + b_children*sum(delta_j[1:K]),
+    vector[61]:a ~ dnorm(a_bar, sigma_a),
+    a_bar ~ dnorm(0, 1.5),
+    sigma_a ~ dexp(1),
+    b_age ~ dnorm(0, 1.5),
+    b_urban ~ dnorm(0, 1.5),
+    b_children ~ dnorm(0, 1.5),
+    vector[4]: delta_j <<- append_row(0, delta),
+    simplex[3]: delta ~ dirichlet(alpha)
+  ), data = d2, chains = 4, cores = 4, log_lik = TRUE
+)
+
+precis(m2.1, depth = 2)
+```
+
+The effect of U is still reliably positive.
+
+I will not be attempting the varying effects at this time.
