@@ -66,3 +66,68 @@ precis(m1, depth = 3, pars = c("a", "Rho_T", "sigma_T"))
 
 So the correlation of likes within dyad seems to be reliable positive (.45 to .79). However, we haven't taken important features of the data into account yet.
 
+## 2
+
+Now we just add dislike to the model, repeating everything.
+
+```{r two.data}
+d2 <- list(
+  N_dyads = nrow(d1_raw),
+  D = d1_raw$dyad_id,
+  like_AB = d1_raw$like_AB,
+  like_BA = d1_raw$like_BA,
+  dislike_AB = d1_raw$dislike_AB,
+  dislike_BA = d1_raw$dislike_BA
+)
+```
+
+```{r two.model}
+f_2 <- alist(
+  like_AB ~ binomial(3, pAB),
+  like_BA ~ binomial(3, pBA),
+  logit(pAB) <- a_like + T[D,1],
+  logit(pBA) <- a_like + T[D,2],
+  a_like ~ normal(0, 1),
+  
+  dislike_AB ~ binomial(3, pAB),
+  dislike_BA ~ binomial(3, pBA),
+  logit(pAB) <- a_dislike + T2[D,1],
+  logit(pBA) <- a_dislike + T2[D,2],
+  a_dislike ~ normal(0, 1),
+  
+  ## like dyad effects
+  transpars> matrix[N_dyads, 2]:T <- compose_noncentered(rep_vector(sigma_T, 2), L_Rho_T, Z),
+  matrix[2, N_dyads]:Z ~ normal(0, 1),
+  cholesky_factor_corr[2]:L_Rho_T ~ lkj_corr_cholesky(2),
+  sigma_T ~ exponential(1),
+  
+  ## dislike dyad effects
+  transpars> matrix[N_dyads, 2]:T2 <- compose_noncentered(rep_vector(sigma_T2, 2), L_Rho_T2, Z2),
+  matrix[2, N_dyads]:Z2 ~ normal(0, 1),
+  cholesky_factor_corr[2]:L_Rho_T2 ~ lkj_corr_cholesky(2),
+  sigma_T2 ~ exponential(1),
+  
+  ## corr matrix for dyads
+  gq> matrix[2,2]:Rho_T <<- Chol_to_Corr(L_Rho_T), 
+  gq> matrix[2,2]:Rho_T2 <<- Chol_to_Corr(L_Rho_T2) 
+)
+
+m2 <- rethinking::ulam(
+  f_2, data = d2, chains = 4, cores = 4, iter = 2000
+)
+
+precis(m2, depth = 3, pars = c("a_like", "a_dislike", "Rho_T", "Rho_T2"))
+```
+
+It looks like the correlation is bit lower for disliking. Computing the contrast:
+
+```{r two.contrast}
+post2 <- extract.samples(m2)
+
+
+tidybayes::mean_qi(post2$Rho_T[,1,2] - post2$Rho_T2[,1,2])
+```
+
+It does look like we could conclude that there is more reciprocity in liking than disliking, but there is also a lot of uncertainty there.
+
+
