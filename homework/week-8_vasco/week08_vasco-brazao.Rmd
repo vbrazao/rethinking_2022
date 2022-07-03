@@ -156,7 +156,7 @@ f_3 <- alist(
   dislike_AB ~ binomial(3, pAB),
   dislike_BA ~ binomial(3, pBA),
   logit(pAB) <- a_dislike + T2[D,1] + R[B,2],
-  logit(pBA) <- a_dislike + T2[D,2] + R[B,2],
+  logit(pBA) <- a_dislike + T2[D,2] + R[A,2],
   a_dislike ~ normal(0, 1),
   
   ## like dyad effects
@@ -217,4 +217,4 @@ ind %>% ggplot(
   scale_x_continuous(breaks = seq(0, 18, by = 1))
 ```
 
-Monks 16 and 10 seem to be particularly disliked.
+Monks 16, 10, and 5 seem to be particularly disliked.
