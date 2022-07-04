@@ -1,0 +1,220 @@
+---
+title: "Homework - Week 8"
+author: "Vasco Brazão"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+library(rethinking)
+library(tidybayes)
+library(tidyverse)
+library(here)
+
+
+set.seed(02072022)
+```
+
+## 1
+
+```{r one.data}
+d1_raw <- readr::read_csv(file = here::here("homework", "week-8_vasco", "week08_Monks.csv"))
+
+d1 <- list(
+  N_dyads = nrow(d1_raw),
+  D = d1_raw$dyad_id,
+  like_AB = d1_raw$like_AB,
+  like_BA = d1_raw$like_BA
+)
+```
+
+We adapt the model of the lecture for this.
+
+```{r one.model}
+f_1 <- alist(
+  like_AB ~ binomial(3, pAB),
+  like_BA ~ binomial(3, pBA),
+  logit(pAB) <- a + T[D,1],
+  logit(pBA) <- a + T[D,2],
+  a ~ normal(0, 1),
+  
+  ## dyad effects
+  transpars> matrix[N_dyads, 2]:T <- compose_noncentered(rep_vector(sigma_T, 2), L_Rho_T, Z),
+  matrix[2, N_dyads]:Z ~ normal(0, 1),
+  cholesky_factor_corr[2]:L_Rho_T ~ lkj_corr_cholesky(2),
+  sigma_T ~ exponential(1),
+  
+  ## corr matrix for dyads
+  gq> matrix[2,2]:Rho_T <<- Chol_to_Corr(L_Rho_T) 
+)
+
+m1 <- rethinking::ulam(
+  f_1, data = d1, chains = 4, cores = 4, iter = 2000
+)
+
+precis(m1, depth = 3, pars = c("a", "Rho_T", "sigma_T"))
+```
+
+So the correlation of likes within dyad seems to be reliable positive (.45 to .79). However, we haven't taken important features of the data into account yet.
+
+## 2
+
+Now we just add dislike to the model, repeating everything.
+
+```{r two.data}
+d2 <- list(
+  N_dyads = nrow(d1_raw),
+  D = d1_raw$dyad_id,
+  like_AB = d1_raw$like_AB,
+  like_BA = d1_raw$like_BA,
+  dislike_AB = d1_raw$dislike_AB,
+  dislike_BA = d1_raw$dislike_BA
+)
+```
+
+```{r two.model}
+f_2 <- alist(
+  like_AB ~ binomial(3, pAB),
+  like_BA ~ binomial(3, pBA),
+  logit(pAB) <- a_like + T[D,1],
+  logit(pBA) <- a_like + T[D,2],
+  a_like ~ normal(0, 1),
+  
+  dislike_AB ~ binomial(3, pAB),
+  dislike_BA ~ binomial(3, pBA),
+  logit(pAB) <- a_dislike + T2[D,1],
+  logit(pBA) <- a_dislike + T2[D,2],
+  a_dislike ~ normal(0, 1),
+  
+  ## like dyad effects
+  transpars> matrix[N_dyads, 2]:T <- compose_noncentered(rep_vector(sigma_T, 2), L_Rho_T, Z),
+  matrix[2, N_dyads]:Z ~ normal(0, 1),
+  cholesky_factor_corr[2]:L_Rho_T ~ lkj_corr_cholesky(2),
+  sigma_T ~ exponential(1),
+  
+  ## dislike dyad effects
+  transpars> matrix[N_dyads, 2]:T2 <- compose_noncentered(rep_vector(sigma_T2, 2), L_Rho_T2, Z2),
+  matrix[2, N_dyads]:Z2 ~ normal(0, 1),
+  cholesky_factor_corr[2]:L_Rho_T2 ~ lkj_corr_cholesky(2),
+  sigma_T2 ~ exponential(1),
+  
+  ## corr matrix for dyads
+  gq> matrix[2,2]:Rho_T <<- Chol_to_Corr(L_Rho_T), 
+  gq> matrix[2,2]:Rho_T2 <<- Chol_to_Corr(L_Rho_T2) 
+)
+
+m2 <- rethinking::ulam(
+  f_2, data = d2, chains = 4, cores = 4, iter = 2000
+)
+
+precis(m2, depth = 3, pars = c("a_like", "a_dislike", "Rho_T", "Rho_T2"))
+```
+
+It looks like the correlation is bit lower for disliking. Computing the contrast:
+
+```{r two.contrast}
+post2 <- extract.samples(m2)
+
+
+tidybayes::mean_qi(post2$Rho_T[,1,2] - post2$Rho_T2[,1,2])
+```
+
+It does look like we could conclude that there is more reciprocity in liking than disliking, but there is also a lot of uncertainty there.
+
+## 3
+
+```{r three.data}
+d3 <- list(
+  N_dyads = nrow(d1_raw),
+  D = d1_raw$dyad_id,
+  like_AB = d1_raw$like_AB,
+  like_BA = d1_raw$like_BA,
+  dislike_AB = d1_raw$dislike_AB,
+  dislike_BA = d1_raw$dislike_BA,
+  A = d1_raw$A,
+  B = d1_raw$B
+)
+```
+
+```{r three.model}
+f_3 <- alist(
+  like_AB ~ binomial(3, pAB),
+  like_BA ~ binomial(3, pBA),
+  logit(pAB) <- a_like + T[D,1] + R[B,1],
+  logit(pBA) <- a_like + T[D,2] + R[A,1],
+  a_like ~ normal(0, 1),
+  
+  dislike_AB ~ binomial(3, pAB),
+  dislike_BA ~ binomial(3, pBA),
+  logit(pAB) <- a_dislike + T2[D,1] + R[B,2],
+  logit(pBA) <- a_dislike + T2[D,2] + R[A,2],
+  a_dislike ~ normal(0, 1),
+  
+  ## like dyad effects
+  transpars> matrix[N_dyads, 2]:T <- compose_noncentered(rep_vector(sigma_T, 2), L_Rho_T, Z),
+  matrix[2, N_dyads]:Z ~ normal(0, 1),
+  cholesky_factor_corr[2]:L_Rho_T ~ lkj_corr_cholesky(2),
+  sigma_T ~ exponential(1),
+  
+  ## dislike dyad effects
+  transpars> matrix[N_dyads, 2]:T2 <- compose_noncentered(rep_vector(sigma_T2, 2), L_Rho_T2, Z2),
+  matrix[2, N_dyads]:Z2 ~ normal(0, 1),
+  cholesky_factor_corr[2]:L_Rho_T2 ~ lkj_corr_cholesky(2),
+  sigma_T2 ~ exponential(1),
+  
+  ## generalized receiving
+  transpars> matrix[18,2]:R <- compose_noncentered(sigma_R, L_Rho_R, ZR),
+  matrix[2,18]:ZR ~ normal(0, 1),
+  cholesky_factor_corr[2]:L_Rho_R ~ lkj_corr_cholesky(2),
+  vector[2]:sigma_R ~ exponential(1),
+  
+  ## corr matrix for dyads
+  gq> matrix[2,2]:Rho_T <<- Chol_to_Corr(L_Rho_T), 
+  gq> matrix[2,2]:Rho_T2 <<- Chol_to_Corr(L_Rho_T2) ,
+  gq> matrix[2,2]:Rho_R <<- Chol_to_Corr(L_Rho_R) 
+)
+
+m3 <- rethinking::ulam(
+  f_3, data = d3, chains = 4, cores = 4, iter = 2000
+)
+
+precis(m3, depth = 3, pars = c("a_like", "a_dislike", "Rho_T", "Rho_T2", "Rho_R"))
+```
+
+To show the individual R parameters:
+
+```{r}
+individuals <- precis(m3, depth = 3, pars = c("R")) 
+
+ind <- tibble(
+  par = rownames(individuals),
+  mean = individuals[,1],
+  low = individuals[,3],
+  high = individuals[,4]
+) %>% 
+  mutate(
+    monk = stringr::str_sub(par, start = 3, end = -4),
+    monk = as.numeric(monk),
+    type = case_when(
+      str_sub(par, start = -2, end = -2) == 1 ~ "like",
+      str_sub(par, start = -2, end = -2) == 2 ~ "dislike"
+    )
+  )
+
+ind %>% ggplot(
+  aes(x = monk, color = type, y = mean, ymin = low, ymax = high)) +
+    geom_pointrange(position = position_dodge(width = 1)) +
+  coord_flip() +
+  scale_x_continuous(breaks = seq(0, 18, by = 1))
+```
+
+Monks 16, 10, and 5 seem to be particularly disliked.
