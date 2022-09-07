@@ -1,5 +1,5 @@
 ---
-title: "Homework - Week 8"
+title: "Homework - Week 9"
 author: "Vasco Brazão"
 output:
   html_document:
@@ -17,6 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r message = FALSE, warning = FALSE}
 library(rethinking)
 library(tidybayes)
+library(tidybayes.rethinking)
 library(tidyverse)
 library(here)
 
@@ -88,18 +89,18 @@ This just would not run and I think I know why... normals are bound super weirdl
 However, this way there is no way for things to be more or less spread out... This is also a terrible model.
 
 ```{r one.model4}
-m1.4 <- ulam(
-  alist(
-  success ~ bernoulli(p),
-  logit(p) <- a + maxeffect*exp(-((age-mu)/spread)^2),
-  a ~ normal(0, 1.5),
-  mu ~ normal(30,15),
-  maxeffect ~ exponential(.5),
-  spread ~ exponential(.5)
-  ), data = d1, chains = 4, cores = 4, iter = 2000
-)
-
-precis(m1.4)
+# m1.4 <- ulam(
+#   alist(
+#   success ~ bernoulli(p),
+#   logit(p) <- a + maxeffect*exp(-((age-mu)/spread)^2),
+#   a ~ normal(0, 1.5),
+#   mu ~ normal(30,15),
+#   maxeffect ~ exponential(.5),
+#   spread ~ exponential(.5)
+#   ), data = d1, chains = 4, cores = 4, iter = 2000
+# )
+# 
+# precis(m1.4)
 ```
 
 Okay! This model is running terribly as well. Maybe some prior predictive simulation will at least like help? Let's simulate 100 trips per ages 11-80.
@@ -214,3 +215,271 @@ d1 %>%
 ```
 
 I AM INCREDULOUS. This is kind of what I expected!! Not bad but definitely not terrible. Clearly newborns do not have close to 12% chance of a successful hunt, but I am happy with how this turned out.
+
+## 2
+
+```{r two.data}
+d2 <- Achehunting %>% 
+  mutate(
+    success = case_when(
+      kg.meat > 0 ~ 1,
+      kg.meat == 0 ~ 0
+    ),
+    age = age/80,
+    id = as.integer(as.factor(id))
+  ) %>% 
+  select(success, age, id, hours)
+
+d2list <- list(
+  success = d2$success,
+  age = d2$age,
+  id = d2$id,
+  maxid = max(d2$id)
+)
+```
+
+I will follow the solutions but with my own model, because I can't yet use ulam to do what I want in these complicated cases. I suppose I will have to start reading the stan manual soon.
+
+Even though it's a little absurd, I will only let maxeffect and spread vary between hunters.
+
+```{r two.model6}
+# m2 <- ulam(
+#   alist(
+#   success ~ bernoulli(p),
+#   logit(p) <- a + maxeffectH[id]*exp(-((age-mu)/spreadH[id])^2),
+#   
+#   # centered varying effects
+#   transpars> vector[maxid]:maxeffectH <<- exp(maxeffect+V[1:maxid, 1]),
+#   transpars> vector[maxid]:spreadH <<- exp(spread+V[1:maxid, 2]),
+#   
+#   # non-centered varying effects
+#   transpars> matrix[maxid, 2]:V <- compose_noncentered(sigma_H, L_Rho_H, Z),
+#   matrix[2, maxid]:Z ~ normal(0, 1),
+#   cholesky_factor_corr[2]:L_Rho_H ~ lkj_corr_cholesky(4),
+#   vector[2]:sigma_H ~ exponential(1),
+#   
+#   # fixed priors
+#   a ~ normal(0, .5),
+#   mu ~ normal(.5,.25),
+#   maxeffect ~ exponential(1),
+#   spread ~ exponential(1),
+#   gq> matrix[2,2]:Rho_H <<- Chol_to_Corr(L_Rho_H)
+#   ), data = d2list, chains = 4, cores = 4, iter = 2000
+# )
+# 
+# precis(m2)
+```
+
+           mean   sd  5.5% 94.5% n_eff Rhat4
+a         -1.81 0.14 -2.03 -1.59   170  1.04
+mu         0.54 0.02  0.52  0.56     3  2.04
+maxeffect  0.63 0.08  0.49  0.76   842  1.01
+spread     0.14 0.15  0.01  0.42  1768  1.01
+
+This model mixed absolutely terribly. So instead, I will take the model from the solutions.
+
+```{r two.model.solutions}
+m2.1 <- ulam(
+  alist(
+    success ~ bernoulli(p),
+    p <- a*exp(-b2id[id]*age)*(1-exp(-b1id[id]*age))^g,
+    
+    # centered varying effects
+    transpars> vector[maxid]:b1id <<- exp(b1+V[1:maxid, 1]),
+    transpars> vector[maxid]:b2id <<- exp(b2+V[1:maxid, 2]),
+    
+    # non-centered varying effects
+    transpars> matrix[maxid, 2]:V <- compose_noncentered(sigma_H, L_Rho_H, Z),
+    matrix[2, maxid]:Z ~ normal(0, 1),
+    cholesky_factor_corr[2]:L_Rho_H ~ lkj_corr_cholesky(4),
+    vector[2]:sigma_H ~ exponential(1),
+    
+    # fixed priors
+    a ~ beta(4, 4),
+    g ~ exponential(0.5),
+    c(b1, b2) ~ normal(0, 0.5),
+    gq> matrix[2, 2]:Rho_H <<- Chol_to_Corr(L_Rho_H)
+  ), data = d2list, chains = 4, cores = 4, iter = 4000
+)
+
+precis(m2.1, 3, pars = c("a", "g", "b1", "b2", "sigma_H"))
+
+```
+
+Now to see variation across hunters:
+
+```{r two.huntervariation}
+post2 <- extract.samples(m2.1)
+
+curve <- function(x, hunter, line){
+  y <- with(post2,
+            a[line]*exp(-b2id[line, hunter]*x/80)*(1-exp(-b1id[line, hunter]*x/80))^g[line])
+  return(y)
+}
+
+dplot <- tibble(
+  age_seq = 0:100
+)
+
+rhunter <- sample(1:d2list$maxid, 10)
+
+for(i in 1:10){
+  plot <- dplot %>% ggplot(aes(x = age_seq)) +
+  stat_function(fun = curve, args = list(hunter = rhunter[i], line = 1)) + 
+  stat_function(fun = curve, args = list(hunter = rhunter[i], line = 2)) + 
+  stat_function(fun = curve, args = list(hunter = rhunter[i], line = 3)) + 
+  stat_function(fun = curve, args = list(hunter = rhunter[i], line = 4)) + 
+  stat_function(fun = curve, args = list(hunter = rhunter[i], line = 5)) +
+  stat_function(fun = curve, args = list(hunter = rhunter[i], line = 6)) +
+  stat_function(fun = curve, args = list(hunter = rhunter[i], line = 7)) +
+  stat_function(fun = curve, args = list(hunter = rhunter[i], line = 8)) +
+  stat_function(fun = curve, args = list(hunter = rhunter[i], line = 9)) +
+  stat_function(fun = curve, args = list(hunter = rhunter[i], line = 10))
+  
+  print(plot)
+}
+```
+
+To compare variation across hunters and age, I'll adapt the code from the solutions to the tidyverse, so I make sure to know how it works.
+
+```{r two.vHA}
+# f_vHA <- function(x, y){
+#   z <- with(post2,
+#             a*exp(-b2id[, y]*x/80)*(1-exp(-b1id[, y]*x/80))^g)
+#   return(z)
+# }
+# 
+# vHA <- rep(NA, d2list$maxid)
+# 
+# Aseq <- 10:80
+# Hseq <- 1:d2list$maxid
+# 
+# for(i in 1:d2list$maxid){
+#   v <- map(
+#     .x = Aseq,
+#     .y = 1,
+#     .f = ~ f_vHA(.x, .y)
+#   )
+#   
+#   vHA[i] <- mean(apply(v, 1, var))
+# }
+# 
+# str(v)
+# 
+# as.data.frame(do.call(cbind, v)) %>% 
+#   pmap(~c(...)) %>% 
+#   map(var)
+# 
+# sapply(Aseq, f_vHA, 1)
+# 
+# f_vHA(10, 1)
+# 
+# map2(cross2(Aseq, Hseq), f_vHA)
+
+```
+
+I'm keeping some of my code attempts to show that I did try and fail to use purrr here...
+
+```{r two.vHA2}
+vHA <- rep(NA, d2list$maxid)
+Aseq <- 10:80
+
+for (i in 1:d2list$maxid){
+  v <- sapply(Aseq, function(x)
+    with(post2,
+         a*exp(-b2id[, i]*x/80)*(1-exp(-b1id[, i]*x/80))^g))
+  
+  vHA[i] <- mean(apply(v, 1, var))
+}
+
+mean(vHA)
+```
+
+```{r two.AH2}
+vAH <- rep(NA, length(Aseq))
+
+for (j in 1:length(Aseq)){
+  v <- sapply(1:d2list$maxid, function(i)
+    with(post2,
+         a*exp(-b2id[, i]*Aseq[j]/80)*(1-exp(-b1id[, i]*Aseq[j]/80))^g))
+  
+  vAH[j] <- mean(apply(v, 1, var))
+}
+
+mean(vAH)
+```
+
+At least Richard's code works :D
+
+#3
+
+```{r three.data}
+d3 <- d2 %>% 
+  mutate(
+    L = hours/max(d2$hours, na.rm = TRUE),
+    log_L = log(L)
+  )
+
+d3list <- list(
+  success = d3$success,
+  age = d3$age,
+  id = d3$id,
+  maxid = max(d3$id),
+  log_L = d3$log_L
+)
+
+d3cc <- d3 %>% filter(!is.na(log_L))
+
+d3cclist <- list(
+  success = d3cc$success,
+  age = d3cc$age,
+  id = d3cc$id,
+  maxid = max(d3cc$id),
+  log_L = d3cc$log_L
+)
+```
+
+Here I am taking from the solutions again - hopefully in a couple of years I'll be able to come up with such things myself.
+
+```{r}
+flist3 <- alist(
+  success ~ bernoulli(p),
+  p <- 1-exp(-exp(lambda*log_L) * f),
+  f <- exp(-b2id[id]*age)*(1-exp(-b1id[id]*age))^g,
+  
+  transpars> vector[maxid]:b1id <<- exp(b1+V[1:maxid, 1]),
+  transpars> vector[maxid]:b2id <<- exp(b2+V[1:maxid, 2]),
+  
+  transpars> matrix[maxid, 2]:V <- compose_noncentered(sigma_H, L_Rho_H, Z),
+  matrix[2, maxid]:Z ~ normal(0, 1),
+  cholesky_factor_corr[2]:L_Rho_H ~ lkj_corr_cholesky(4),
+  vector[2]:sigma_H ~ exponential(1),
+  
+  log_L ~ normal(muL, sigmaL),
+  muL ~ normal(-1, 0.25),
+  sigmaL ~ exponential(2),
+  
+  lambda ~ exponential(1),
+  g ~ exponential(0.5),
+  c(b1, b2) ~ normal(0, 0.5),
+  gq> matrix[2,2]:Rho_H <<- Chol_to_Corr(L_Rho_H)
+)
+```
+
+```{r three.complete.cases}
+m3cc <- ulam(flist3, data = d3cclist, chains = 4, cores = 4, warmup = 1000, iter = 4000)
+
+m3 <- ulam(flist3, data = d3list, chains = 4, cores = 4, warmup = 1000, iter = 4000)
+
+precis(m3cc,)
+
+precis(m3cc, 2, pars = "sigma_H")
+
+precis(m3)
+
+precis(m3, 2, pars = "sigma_H")
+```
+
+All in all, there seems to be only a small effect of trip duration.
+
+Perhaps this could be because trip duration is not decided in advance? If hunters decide to end a trip when they are either too tired or have been successful enough, that would be at odds with our assumed causal model and explain the small effect of trip duration. This reminds me of a study where cab drivers in NYC worked less total time on days where they were more efficient (more people hailing cabs, faster money for the cab driver), because instead of maximizing their profits for that one day they just decided to stop working sooner and earn the same amount of money as usual but in less time.
